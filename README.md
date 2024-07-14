@@ -13,7 +13,7 @@ Clone the repository
 ```
 git clone https://github.com/lohithgsk/sigma-api
 ```
-run the following command to start the server. ``` flask run ``` doesn't seem to work.
+run the following command to start the server.
 ```
 python app.py
 ```

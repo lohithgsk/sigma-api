@@ -5,15 +5,43 @@ from flask import Flask, request, jsonify, render_template
 from flask_pymongo import PyMongo
 from datetime import datetime
 import json
+import random, string, requests, subprocess
+from flask_cors import CORS, cross_origin
 
+########################################################################
+import cv2
+import numpy as np
+from pyzbar.pyzbar import decode
+
+import base64
+
+from PIL import Image
+from io import StringIO
+########################################################################
+
+def qr_decoder(image):
+    gray_img = cv2.cvtColor(image,0)
+    barcode = decode(gray_img)
+    barcodeData = barcode[0].data.decode("utf-8")
+    barcodeType = barcode[0].type
+    return str(barcodeData)
+
+def readb64(uri):
+   encoded_data = uri.split(',')[1]
+   nparr = np.fromstring(base64.b64decode(encoded_data), np.uint8)
+   img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+   return img
+
+#########################################################################
 
 
 app = Flask(__name__)
 app.config["MONGO_URI"] = "mongodb+srv://flask-access:qwertyuiop@gms.6lp3mja.mongodb.net/client?retryWrites=true&w=majority"
 app.secret_key = 'mysecretkey'
+CORS(app)
 
 mongo = PyMongo(app)
-BASE_URL = "http://127.0.0.1:5001"
+BASE_URL = "https://api.gms.intellx.in"
 
 
 def get_hash(clear:str):
@@ -46,12 +74,158 @@ def sendmail(mail_met, receiver, subject, short_subject, text, html="NOT INPUT B
         server.login(sender_email, password)
         server.sendmail(sender_email, receiver_email, message.as_string())
 
+
+def createIssue(data:dict):
+
+    '''
+    the createIssue function creates an Issue and appends it to the DataBase, and takes "data",
+    a dictionary as input.
+    {
+        "name"        : str
+        "id"          : str
+        "issueType"   : str
+        "issueContent": str
+        "block"       : str
+        "floor"       : str
+        "actionItem"  : str
+        "comments"    : [
+                          {
+                            "by"      : str
+                            "content" : str
+                          }
+                        ]
+        "survey"      : {
+                            "key" : str (a set of keys and values)
+                        }
+        "anonymity"   : str (true/false)
+    }
+    '''
+
+    rightNow=datetime.now()
+    newEntry={
+    "issueNo":"".join(random.choices(string.ascii_uppercase+string.digits,k=5)),
+    "time":rightNow.strftime("%I:%M %p") ,
+    "date":rightNow.strftime("%d/%m/%y"),
+    "raised_by":{
+        "name":data["name"],
+        "personId":data["id"]
+        },
+    "issue":{
+        "issueLastUpdateTime":rightNow.strftime("%I:%M %p") ,
+        "issueLastUpdateDate":rightNow.strftime("%d/%m/%y"),
+        "issueType":data["issueType"],
+        "issueCat":data["issueCat"],
+        "issueContent":data["issueContent"],
+        "block":data["block"],
+        "floor":data["floor"],
+        "actionItem":data["actionItem"]
+        },
+    "comments":[{
+        "date":rightNow.strftime("%d-%m-%y %I:%M %p"),
+        "by":data["comments"][0]["by"],
+        "content":data["comments"][0]["content"]
+        }],
+    "status":"OPEN",
+    "log":[{
+        "date":rightNow.strftime("%d-%m-%y %H:%M"),
+        "action":"opened",
+        "by":data["id"]
+        }],
+    "survey":data["survey"],
+    "anonymity":data["anonymity"]
+    }
+    
+    mongo.db.dataset.insert_one(newEntry)
+
+    return newEntry["issueNo"]
+
+def openIssue(issueId:str,personId:str):
+    '''
+    openIssue is a function which takes in 2 parameters, issueId and personId,
+    and utilizes these parameters to search for an issue by issueId, mark the
+    issue as open, and add "opened by personId" to the logs.
+    '''
+    
+    rightNow=datetime.now()
+
+    issueEntry = mongo.db.dataset.find_one({"issueNo":issueId})
+
+    log = issueEntry.get("log")
+    log.append({  
+    "date":rightNow.strftime("%d-%m-%y %H:%M"),
+    "action":"opened",
+    "by": personId
+    })
+    issue = issueEntry.get("issue")
+    issue["issueLastUpdateDate"]=rightNow.strftime("%d/%m/%y")
+    issue["issueLastUpdateTime"]=rightNow.strftime("%I:%M %p")
+    mongo.db.dataset.update_one({"_id":issueEntry.get("_id")}, {"$set" :
+                                        {"log":log,
+                                         "status":"OPEN",
+                                         "issue":issue}})
+    
+
+def closeIssue(issueId:str,personId:str):
+    '''
+    closeIssue is a function which takes in 2 parameters, issueId and personId,
+    and utilizes these parameters to search for an issue by issueId, mark the
+    issue as close, and add "closed by personId" to the logs.
+    '''
+
+    rightNow=datetime.now()
+
+    issueEntry = mongo.db.dataset.find_one({"issueNo":issueId})
+
+    log = issueEntry.get("log")
+    log.append({  
+    "date":rightNow.strftime("%d-%m-%y %H:%M"),
+    "action":"closed",
+    "by": personId
+    })
+    issue = issueEntry.get("issue")
+    issue["issueLastUpdateDate"]=rightNow.strftime("%d/%m/%y")
+    issue["issueLastUpdateTime"]=rightNow.strftime("%I:%M %p")
+    mongo.db.dataset.update_one({"_id":issueEntry.get("_id")}, {"$set" :
+                                        {"log":log,
+                                         "status":"CLOSE",
+                                         "issue":issue}})
+
+def addComment(issueId:str,comment:dict):
+    '''
+    addComment is a function which takes in 2 parameters, issueId and comment,
+    and utilizes these parameters to search for an issue by issueId, mark the
+    issue as close, and add "closed by personId" to the logs.
+    '''
+
+    rightNow=datetime.now()
+
+    issueEntry = mongo.db.dataset.find_one({"issueNo":issueId})
+
+    comments = issueEntry.get("comments")
+    comments.append({ 
+            "date":rightNow.strftime("%d-%m-%y %H:%M"),
+            "content":comment["content"],
+            "by":comment["by"]
+            })
+    issue = issueEntry.get("issue")
+    issue["issueLastUpdateDate"]=rightNow.strftime("%d/%m/%y")
+    issue["issueLastUpdateTime"]=rightNow.strftime("%I:%M %p")
+    mongo.db.dataset.update_one({"_id":issueEntry.get("_id")}, {"$set" :
+                                        {"comments":comments,
+                                         "issue":issue}})
+
+
 @app.route('/')
 def home():
     project_info = {
-            "project_name": "SIGMA | General Maintenance Software | API",
+        "project_name": "SIGMA | General Maintenance Software | API",
+        "contributors": {
+            "Frontend": ["Navaneetha Krishnan", "Abinav", "Kavvya"],
+            "Backend": ["Aaditya Rengarajan", "Lohith S","Maanasa S"],
+            "Advisors": ["Dr.Sundaram M", "Dr.Priya", "Dr.L.S.Jayashree"]
         }
-    return project_info
+    }
+    return jsonify(project_info)
 
 @app.route('/client/register', methods=['POST'])
 def client_register():
@@ -248,10 +422,127 @@ def client_update_password():
     return jsonify({'message': 'Password updated successfully'}), 200
 
 
+@app.route('/client/issue/status', methods=['POST'])
+def issue_status():
+    data = request.get_json()
+    if not data:
+        return jsonify({"status": "error", "message": "Invalid or missing JSON data"}), 400
+
+    user_id = data.get('user_id')
+    if not user_id:
+        return jsonify({"status": "error", "message": "Missing user_id in request data"}), 400
+
+    try:
+        issues = mongo.db.dataset.find()
+        my_issues = []
+        for i in issues:
+            if i["raised_by"]["personId"] == user_id:
+                my_issues.append({
+                    "category": i["issue"]["issueCat"],
+                    "code": i["issueNo"],
+                    "status": i["status"],
+                    "desc": f"{i['issue']['issueContent'][:75]}..." if len(i['issue']['issueContent']) > 75 else i['issue']['issueContent']
+                })
+
+        return jsonify({"status": "success", "data": my_issues}), 200
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+@app.route('/client/issue/status/<code>', methods=['POST'])
+def client_issue_status_description(code):
+    return issue_status_description(code)
 
 
+@app.route('/client/issue/add-comment/<code>',methods=["GET","POST"])
+def client_issue_add_comment(code):
+    return issue_add_comment(code)
 
+@app.route('/client/issue/close/<code>')
+def client_issue_close(code):
+    return issue_close(code)
 
+@app.route('/client/issue/open/<code>')
+def client_issue_open(code):
+    return issue_open(code)
+
+@app.route('/client/account')
+def client_account_page():
+    data = request.get_json()
+    user_id = data.get('id')
+    user = mongo.db.users.find_one({'id': user_id})
+
+    if not user_id:
+        return jsonify({'message': 'ID is required'}), 400
+    
+    if not user:
+        return jsonify({'message': 'Invalid ID'}), 401
+    
+    user['_id'] = str(user['_id'])  # Convert ObjectId to string for JSON serialization
+    return jsonify({'user': user}), 200
+
+@app.route('/client/issue/report/qr', methods=['POST'])
+def report_issue_qr():
+    data = request.get_json()
+    
+    user_id = data.get("id")
+    if not user_id:
+        return jsonify({"message": "User ID is required"}), 400
+    
+    file_data = data.get("file")
+    if not file_data:
+        return jsonify({"message": "File data is required"}), 400
+    
+    try:
+        img = readb64(file_data)
+        qr_result = qr_decoder(img)
+        return jsonify({"qr_result": qr_result}), 200
+    except Exception as e:
+        return jsonify({"message": str(e)}), 500
+    
+@app.route('/client/issue/report', methods=['POST'])
+def report_issue():
+    data = request.get_json()
+
+    if not data:
+        return jsonify({"message": "Request data is required"}), 400
+
+    # Get user details from request data
+    user_id = data.get("id")
+    user_name = data.get("name")
+
+    if not user_id or not user_name:
+        return jsonify({"message": "User ID and name are required"}), 400
+
+    # Extract and format survey data
+    survey = {}
+    for key, value in data.items():
+        if key.startswith("survey-"):
+            name = key.replace("survey-", "").replace("-", " ")
+            name = " ".join(word.capitalize() for word in name.split(" "))
+            survey[name] = value
+
+    issue_data = {
+        "name": user_name,
+        "id": user_id,
+        "issueType": data.get("report_type"),
+        "issueCat": data.get("report_category", "").upper(),
+        "issueContent": data.get("report_content"),
+        "block": data.get("block"),
+        "floor": data.get("floor"),
+        "actionItem": data.get("action_item"),
+        "comments": [
+            {
+                "by": user_id,
+                "content": data.get("report_content")
+            }
+        ],
+        "survey": survey,
+        "anonymity": "true" if data.get("anonymity") == "on" else "false"
+    }
+
+    issue_id = createIssue(issue_data)
+
+    return jsonify({"message": "Issue reported successfully", "issue_id": issue_id}), 201
 
 #########################################################################################################################################
 
@@ -321,84 +612,6 @@ def priority(task:dict):
     return priority
 
 
-
-def closeIssue(issueId:str,personId:str):
-    '''
-    closeIssue is a function which takes in 2 parameters, issueId and personId,
-    and utilizes these parameters to search for an issue by issueId, mark the
-    issue as close, and add "closed by personId" to the logs.
-    '''
-
-    rightNow=datetime.now()
-
-    issueEntry = mongo.db.dataset.find_one({"issueNo":issueId})
-
-    log = issueEntry.get("log")
-    log.append({  
-    "date":rightNow.strftime("%d-%m-%y %H:%M"),
-    "action":"closed",
-    "by": personId
-    })
-    issue = issueEntry.get("issue")
-    issue["issueLastUpdateDate"]=rightNow.strftime("%d/%m/%y")
-    issue["issueLastUpdateTime"]=rightNow.strftime("%I:%M %p")
-    mongo.db.dataset.update_one({"_id":issueEntry.get("_id")}, {"$set" :
-                                        {"log":log,
-                                         "status":"CLOSE",
-                                         "issue":issue}})
-    
-
-def openIssue(issueId:str,personId:str):
-    '''
-    openIssue is a function which takes in 2 parameters, issueId and personId,
-    and utilizes these parameters to search for an issue by issueId, mark the
-    issue as open, and add "opened by personId" to the logs.
-    '''
-    
-    rightNow=datetime.now()
-
-    issueEntry = mongo.db.dataset.find_one({"issueNo":issueId})
-
-    log = issueEntry.get("log")
-    log.append({  
-    "date":rightNow.strftime("%d-%m-%y %H:%M"),
-    "action":"opened",
-    "by": personId
-    })
-    issue = issueEntry.get("issue")
-    issue["issueLastUpdateDate"]=rightNow.strftime("%d/%m/%y")
-    issue["issueLastUpdateTime"]=rightNow.strftime("%I:%M %p")
-    mongo.db.dataset.update_one({"_id":issueEntry.get("_id")}, {"$set" :
-                                        {"log":log,
-                                         "status":"OPEN",
-                                         "issue":issue}})
-    
-
-def addComment(issueId:str,comment:dict):
-    '''
-    addComment is a function which takes in 2 parameters, issueId and comment,
-    and utilizes these parameters to search for an issue by issueId, mark the
-    issue as close, and add "closed by personId" to the logs.
-    '''
-    rightNow=datetime.now()
-
-    issueEntry = mongo.db.dataset.find_one({"issueNo":issueId})
-
-    comments = issueEntry.get("comments")
-    comments.append({ 
-            "date":rightNow.strftime("%d-%m-%y %H:%M"),
-            "content":comment["content"],
-            "by":comment["by"]
-            })
-    issue = issueEntry.get("issue")
-    issue["issueLastUpdateDate"]=rightNow.strftime("%d/%m/%y")
-    issue["issueLastUpdateTime"]=rightNow.strftime("%I:%M %p")
-    mongo.db.dataset.update_one({"_id":issueEntry.get("_id")}, {"$set" :
-                                        {"comments":comments,
-                                         "issue":issue}})
-
-
-
 @app.route('/manager/register',methods=['POST'])
 def manager_register():
     data = request.get_json()
@@ -446,7 +659,6 @@ def manager_register():
     })
     
     return jsonify({'message': 'Please check your e-mail to confirm your registration.'}), 201
-
 
 
 # self email confirmation
@@ -882,4 +1094,4 @@ def account_page():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5001, debug=True)
-    print(mongo.db.users.find().pretty())
+    

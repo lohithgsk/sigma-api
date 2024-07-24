@@ -7,6 +7,8 @@ from datetime import datetime
 import json
 import random, string, requests, subprocess
 from flask_cors import CORS, cross_origin
+from flask_jwt_extended import JWTManager, jwt_required, create_access_token, get_jwt_identity
+from datetime import timedelta
 
 ########################################################################
 import cv2
@@ -38,10 +40,14 @@ def readb64(uri):
 app = Flask(__name__)
 app.config["MONGO_URI"] = "mongodb+srv://flask-access:qwertyuiop@gms.6lp3mja.mongodb.net/client?retryWrites=true&w=majority"
 app.secret_key = 'mysecretkey'
+app.config["JWT_SECRET_KEY"] = "travis-scott>>>drake"
+app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(days=1)
+jwt = JWTManager(app)
 CORS(app)
 
 mongo = PyMongo(app)
-BASE_URL = "https://api.gms.intellx.in"
+#BASE_URL = "https://api.gms.intellx.in"
+BASE_URL = "http://127.0.0.1:5001"
 
 
 def get_hash(clear:str):
@@ -236,6 +242,7 @@ def client_register():
     name = data.get('name')
     user_id = data.get('id')
     password = data.get('password')
+
     
     if not name or not user_id or not password:
         return jsonify({'message': 'Name, ID, and password are required'}), 400
@@ -294,21 +301,24 @@ def client_login():
         return jsonify({'message': 'ID and password are required'}), 400
     
     user = mongo.db.users.find_one({'id': user_id})
-    
+
     if not user or get_hash(password) != user['hashword']:
         return jsonify({'message': 'Invalid ID or password'}), 401
     
     if not user['confirmed']:
         return jsonify({'message': 'Email not confirmed. Please check your email.'}), 403
     
-    return jsonify({'message': 'Login successful'}), 200
+    access_token = create_access_token(identity=user_id)
+    user.pop('hashword', None)
+    user.pop('_id', None)
+    return jsonify({'message': 'Login successful', "token": access_token, 'user':user}), 200
 
 @app.route('/client/update', methods=['PUT'])
 def client_update_user():
     data = request.get_json()
     user_id = data.get('id')
     new_data = data.get('new_data')
-    
+
     if not user_id or not new_data:
         return jsonify({'message': 'ID and new data are required'}), 400
     
@@ -325,6 +335,11 @@ def client_update_user():
 def client_delete_user():
     data = request.get_json()
     user_id = data.get('id')
+
+    current_user_id = get_jwt_identity()
+
+    if user_id != current_user_id:
+        return jsonify({'message': 'You are not authorized'}), 403
     
     if not user_id:
         return jsonify({'message': 'ID required'}), 400
@@ -924,8 +939,11 @@ def manager_login():
         return jsonify({'message': 'Email not confirmed. Please check your email.'}), 403
     
     # If login is successful, return the entire user data
-    user['_id'] = str(user['_id'])  # Convert ObjectId to string for JSON serialization
-    return jsonify({'message': 'Login successful', 'user': user}), 200
+    access_token = create_access_token(identity=user_id)
+    user.pop('hashword', None)
+    user.pop('_id', None)
+    return jsonify({'message': 'Login successful', "token": access_token, 'user':user}), 200
+
 
 
 @app.route('/administrator/new-user', methods=['POST']) # adds new personnel member

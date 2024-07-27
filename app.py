@@ -335,11 +335,6 @@ def client_update_user():
 def client_delete_user():
     data = request.get_json()
     user_id = data.get('id')
-
-    current_user_id = get_jwt_identity()
-
-    if user_id != current_user_id:
-        return jsonify({'message': 'You are not authorized'}), 403
     
     if not user_id:
         return jsonify({'message': 'ID required'}), 400
@@ -435,6 +430,21 @@ def client_update_password():
     mongo.db.users.update_one({'reset_key': reset_key}, {'$set': {'hashword': hashed_password, 'reset_key': ''}})
     
     return jsonify({'message': 'Password updated successfully'}), 200
+
+@app.route('/client/issues/total', methods=['GET'])
+def total_issues():
+    total_issues_count = mongo.db.dataset.count_documents({})
+    return jsonify({"total_issues": total_issues_count})
+
+@app.route('/client/issues/total/open', methods=['GET'])
+def open_issues():
+    open_issues_count = mongo.db.dataset.count_documents({"status": "OPEN"})
+    return jsonify({"open_issues": open_issues_count})
+
+@app.route('/client/issues/total/closed', methods=['GET'])
+def closed_issues():
+    closed_issues_count = mongo.db.dataset.count_documents({"status": "CLOSE"})
+    return jsonify({"closed_issues": closed_issues_count})
 
 
 @app.route('/client/issue/status', methods=['POST'])
@@ -956,7 +966,7 @@ def adm_new_user():
     new_user = {
         "name": data.get("name"),
         "id": data.get("id"),
-        "hashword": "d63dc919e201d7bc4c825630d2cf25fdc93d4b2f0d46706d29038d01",  # default password is password
+        "hashword": get_hash(data.get("hashword")),  # default password is password
         "confirmed": True
     }
 
@@ -992,6 +1002,8 @@ def all_users_table():
             })
     
     return jsonify({"users": my_users, "title": "[PSG COLLEGE OF TECHNOLOGY | MAINTENANCE] ALL USERS"})
+
+
 
 
 @app.route('/tasks/resolved')

@@ -46,8 +46,8 @@ jwt = JWTManager(app)
 CORS(app)
 
 mongo = PyMongo(app)
-#BASE_URL = "https://api.gms.intellx.in"
-BASE_URL = "http://127.0.0.1:5001"
+BASE_URL = "https://api.gms.intellx.in"
+#BASE_URL = "http://127.0.0.1:5001"
 
 
 def get_hash(clear:str):
@@ -846,6 +846,32 @@ def manager_escalate_email(confkey):
         'message': "You have escalated this user's privileges to moderator status."
     }), 200
 
+@app.route('/manager/reject/<user_id>', methods=['DELETE'])
+def reject_user(user_id):
+    user = mongo.db.personnel.find_one({'id': user_id})
+    
+    if not user:
+        return jsonify({'message': 'User not found'}), 404
+    
+    # Remove user from the database
+    mongo.db.personnel.delete_one({'id': user_id})
+    
+    # Send rejection email
+    rejection_message = f"""Dear {user['name']},
+    <br/>We regret to inform you that your registration has been rejected. You can reapply and approach a moderator for further assistance.
+    <br/><br/>
+    Thank You."""
+    
+    sendmail(
+        mail_met={"type": "rejection"},
+        receiver=f"{user_id}@psgtech.ac.in",
+        subject="[PSG-GMS-SIGMA] Registration Rejected",
+        short_subject="Registration Rejected",
+        text=rejection_message
+    )
+    
+    return jsonify({'message': 'User has been rejected and notified via email'}), 200
+
 
 @app.route('/manager/reset_password', methods=['POST'])
 def manager_reset_password():
@@ -1013,7 +1039,9 @@ def get_pending_approval_users():
             'name': user['name'],
             'id': user['id'],
             'confirmed': user['confirmed'],
-            'approved': user['approved']
+            'approved': user['approved'],
+            'confkey': user['confkey'],
+            'modkey': user['modkey']
         })
     
     pending_count = len(pending_users)

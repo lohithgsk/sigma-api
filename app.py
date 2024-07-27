@@ -1162,7 +1162,7 @@ def issue_add_comment(code):
     addComment(code, {"content": content, "by": user_id})
     return jsonify({'message': 'Comment added successfully'}), 200
 
-@app.route('/manager/account')
+@app.route('/manager/account', methods=['POST'])
 def account_page():
     data = request.get_json()
     user_id = data.get('id')

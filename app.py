@@ -549,16 +549,16 @@ def report_issue():
     issue_data = {
         "name": user_name,
         "id": user_id,
-        "issueType": data.get("report_type"),
-        "issueCat": data.get("report_category", "").upper(),
-        "issueContent": data.get("report_content"),
+        "issueType": data.get("issueType"),
+        "issueCat": data.get("issueCat").upper(),
+        "issueContent": data.get("issueContent"),
         "block": data.get("block"),
         "floor": data.get("floor"),
-        "actionItem": data.get("action_item"),
+        "actionItem": data.get("actionItem"),
         "comments": [
             {
                 "by": user_id,
-                "content": data.get("report_content")
+                "content": data["comments"][0]["content"]
             }
         ],
         "survey": survey,

@@ -1004,6 +1004,26 @@ def all_users_table():
     return jsonify({"users": my_users, "title": "[PSG COLLEGE OF TECHNOLOGY | MAINTENANCE] ALL USERS"})
 
 
+@app.route('/manager/pending-approval', methods=['GET'])
+def get_pending_approval_users():
+    pending_users_cursor = mongo.db.personnel.find({'confirmed': True, 'approved': False})
+    pending_users = []
+    for user in pending_users_cursor:
+        pending_users.append({
+            'name': user['name'],
+            'id': user['id'],
+            'confirmed': user['confirmed'],
+            'approved': user['approved']
+        })
+    
+    pending_count = len(pending_users)
+    
+    return jsonify({
+        'count': pending_count,
+        'users': pending_users
+    }), 200
+
+
 @app.route('/tasks', methods=['GET'])
 def get_all_issues():
     issues = mongo.db.dataset.find()

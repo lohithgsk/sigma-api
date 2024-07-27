@@ -1004,7 +1004,14 @@ def all_users_table():
     return jsonify({"users": my_users, "title": "[PSG COLLEGE OF TECHNOLOGY | MAINTENANCE] ALL USERS"})
 
 
-
+@app.route('/tasks', methods=['GET'])
+def get_all_issues():
+    issues = mongo.db.dataset.find()
+    serialized_issues = []
+    for issue in issues:
+        issue_dict = {key: value for key, value in issue.items() if key != '_id'}
+        serialized_issues.append(issue_dict)
+    return jsonify({"issues": serialized_issues})
 
 @app.route('/tasks/resolved')
 def resolved_table():

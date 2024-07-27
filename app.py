@@ -751,7 +751,7 @@ def manager_approve_email(confkey):
     user_to_approve = None
 
     for user in users:
-        if user.get("modkey") == confkey:
+        if user.get("confkey") == confkey:
             user_to_approve = user
             break
     

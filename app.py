@@ -9,7 +9,10 @@ import random, string, requests, subprocess
 from flask_cors import CORS, cross_origin
 from flask_jwt_extended import JWTManager, jwt_required, create_access_token, get_jwt_identity
 from datetime import timedelta
+from dotenv import load_dotenv
+import os
 
+load_dotenv()
 ########################################################################
 import cv2
 import numpy as np
@@ -38,9 +41,9 @@ def readb64(uri):
 
 
 app = Flask(__name__)
-app.config["MONGO_URI"] = "mongodb+srv://flask-access:qwertyuiop@gms.6lp3mja.mongodb.net/client?retryWrites=true&w=majority"
-app.secret_key = 'mysecretkey'
-app.config["JWT_SECRET_KEY"] = "travis-scott>>>drake"
+app.config["MONGO_URI"] = os.getenv("MONGO_URI")
+app.secret_key = os.getenv("SECRET_KEY")
+app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY")
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(days=1)
 jwt = JWTManager(app)
 CORS(app)
@@ -490,7 +493,7 @@ def client_issue_close(code):
 def client_issue_open(code):
     return issue_open(code)
 
-@app.route('/client/account')
+@app.route('/client/account', methods=['POST'])
 def client_account_page():
     data = request.get_json()
     user_id = data.get('id')
@@ -502,7 +505,8 @@ def client_account_page():
     if not user:
         return jsonify({'message': 'Invalid ID'}), 401
     
-    user['_id'] = str(user['_id'])  # Convert ObjectId to string for JSON serialization
+    user.pop('hashword', None)
+    user.pop('_id', None)# Convert ObjectId to string for JSON serialization
     return jsonify({'user': user}), 200
 
 @app.route('/client/issue/report/qr', methods=['POST'])

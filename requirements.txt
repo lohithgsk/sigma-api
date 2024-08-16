@@ -1,3 +1,9 @@
 Flask==3.0.3
 Flask_PyMongo==2.3.0
 Werkzeug==3.0.3
+pyzbar==0.1.9
+Flask_PyMongo==2.3.0
+python-dotenv==1.0.1
+opencv-python==4.9.0.80
+Flask-Cors==4.0.1
+gunicorn==22.0.0

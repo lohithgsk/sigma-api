@@ -311,7 +311,7 @@ def client_login():
     if not user['confirmed']:
         return jsonify({'message': 'Email not confirmed. Please check your email.'}), 403
     
-    access_token = create_access_token(identity=user_id)
+    access_token = create_access_token(identity={'id': user_id, 'name': user['name']})
     user.pop('hashword', None)
     user.pop('_id', None)
     return jsonify({'message': 'Login successful', "token": access_token, 'user':user}), 200
@@ -979,7 +979,7 @@ def manager_login():
         return jsonify({'message': 'Email not confirmed. Please check your email.'}), 403
     
     # If login is successful, return the entire user data
-    access_token = create_access_token(identity=user_id)
+    access_token = create_access_token(identity={'id': user_id, 'name': user['name']})
     user.pop('hashword', None)
     user.pop('_id', None)
     return jsonify({'message': 'Login successful', "token": access_token, 'user':user}), 200

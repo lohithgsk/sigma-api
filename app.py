@@ -562,7 +562,7 @@ def report_issue():
         "comments": [
             {
                 "by": user_id,
-                "content": data["comments"][0]["content"]
+                "content": data["comments"]
             }
         ],
         "survey": survey,

@@ -1065,6 +1065,33 @@ def get_all_issues():
         serialized_issues.append(issue_dict)
     return jsonify({"issues": serialized_issues})
 
+@app.route('/tasks/count', methods=['GET'])
+def count_issues():
+    # Get the current date and calculate the date for 365 days and 30 days ago
+    current_date = datetime.now()
+    print(current_date)
+    date_365_days_ago = current_date - timedelta(days=365)
+    print(date_365_days_ago)
+    date_30_days_ago = current_date - timedelta(days=30)
+    
+    # Convert dates to string format that matches your stored date format
+    formatted_date_365_days_ago = date_365_days_ago.strftime('%d/%m/%y')
+    print(formatted_date_365_days_ago)
+    formatted_date_30_days_ago = date_30_days_ago.strftime('%d/%m/%y')
+    
+    # Query MongoDB to count the number of issues in the past 365 days and 30 days using the 'date' field
+    count_365_days = mongo.db.dataset.count_documents({
+        'date': {'$gte': formatted_date_365_days_ago}
+    })
+    count_30_days = mongo.db.dataset.count_documents({
+        'date': {'$gte': formatted_date_30_days_ago}
+    })
+
+    return jsonify({
+        'total_issues_last_365_days': count_365_days,
+        'total_issues_last_30_days': count_30_days
+    }), 200
+
 @app.route('/tasks/resolved')
 def resolved_table():
     issues = mongo.db.dataset.find()

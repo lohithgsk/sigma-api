@@ -3,14 +3,14 @@ from email.mime.text import MIMEText
 import ssl, smtplib, hashlib, uuid
 from flask import Flask, request, jsonify, render_template
 from flask_pymongo import PyMongo
-from datetime import datetime
 import json
 import random, string, requests, subprocess
 from flask_cors import CORS, cross_origin
 from flask_jwt_extended import JWTManager, jwt_required, create_access_token, get_jwt_identity
-from datetime import timedelta
+from datetime import datetime, timedelta
 from dotenv import load_dotenv
 import os
+import time
 
 load_dotenv()
 ########################################################################
@@ -1069,59 +1069,56 @@ def get_all_issues():
 def count_issues():
     # Get the current date and calculate the date for 365 days and 30 days ago
     current_date = datetime.now()
-    print(current_date)
     date_365_days_ago = current_date - timedelta(days=365)
-    print(date_365_days_ago)
     date_30_days_ago = current_date - timedelta(days=30)
     
-    # Convert dates to string format that matches your stored date format
-    formatted_date_365_days_ago = date_365_days_ago.strftime('%d/%m/%y')
-    print(formatted_date_365_days_ago)
-    formatted_date_30_days_ago = date_30_days_ago.strftime('%d/%m/%y')
+    # Initialize counters
+    count_365_days_open = 0
+    count_365_days_closed = 0
+    count_30_days_open = 0
+    count_30_days_closed = 0
+
+    # Fetch all issues from the database
+    issues = mongo.db.dataset.find({'date': {'$exists': True}})
     
-    # Query MongoDB to count the number of issues in the past 365 days and 30 days using the 'date' field
-    count_365_days = mongo.db.dataset.count_documents({
-        'date': {'$gte': formatted_date_365_days_ago}
-    })
-    count_30_days = mongo.db.dataset.count_documents({
-        'date': {'$gte': formatted_date_30_days_ago}
-    })
+    # Iterate through the issues and count based on the date and status
+    for issue in issues:
+        issue_date_str = issue.get('date')
+        issue_status = issue.get('status')
+        
+        try:
+            # Convert the issue's date string to a datetime object
+            issue_date = datetime.strptime(issue_date_str, '%d/%m/%y')
+            
+            # Check and count based on the date comparison and status
+            if issue_date >= date_365_days_ago:
+                if issue_status == 'OPEN':
+                    count_365_days_open += 1
+                elif issue_status == 'CLOSE':
+                    count_365_days_closed += 1
+            
+            if issue_date >= date_30_days_ago:
+                if issue_status == 'OPEN':
+                    count_30_days_open += 1
+                elif issue_status == 'CLOSE':
+                    count_30_days_closed += 1
+        
+        except ValueError:
+            # Handle cases where the date format might be incorrect
+            print(f"Date format error in issue with ID: {issue.get('_id')}")
 
     return jsonify({
-        'total_issues_last_365_days': count_365_days,
-        'total_issues_last_30_days': count_30_days
+        'issues_last_365_days': {
+            'total': count_365_days_open + count_365_days_closed,
+            'open': count_365_days_open,
+            'closed': count_365_days_closed
+        },
+        'issues_last_30_days': {
+            'total': count_30_days_open + count_30_days_closed,
+            'open': count_30_days_open,
+            'closed': count_30_days_closed
+        }
     }), 200
-
-@app.route('/tasks/resolved')
-def resolved_table():
-    issues = mongo.db.dataset.find()
-    my_issues = []
-
-    for i in issues:
-        if i["status"] == "CLOSE":
-            if i["issue"]["issueType"] == "ISSUE":
-                issueDate = datetime.strptime(i["issue"]["issueLastUpdateDate"], "%d/%m/%y")
-                ddays = (datetime.now() - issueDate).days
-                i.update({"delay_days": ddays})
-                i.update({"priority": priority(i)})
-                my_issues.append({
-                    "delay_days": ddays,
-                    "priority": priority(i),
-                    "issue": i["issue"]
-                })
-        elif i["issue"]["issueType"] == "FEEDBACK":
-            issueDate = datetime.strptime(i["issue"]["issueLastUpdateDate"], "%d/%m/%y")
-            ddays = (datetime.now() - issueDate).days
-            i.update({"delay_days": ddays})
-            i.update({"priority": priority(i)})
-            my_issues.append({
-                "delay_days": ddays,
-                "priority": priority(i),
-                "issue": i["issue"]
-            })
-    
-    return jsonify({"issues": my_issues, "title": "[PSG COLLEGE OF TECHNOLOGY | MAINTENANCE] RESOLVED ISSUES"})
-
 
 @app.route('/task/status/<code>')
 def issue_status_description(code):

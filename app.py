@@ -469,6 +469,7 @@ def issue_status():
                     "category": i["issue"]["issueCat"],
                     "code": i["issueNo"],
                     "status": i["status"],
+                    "date": i["date"],
                     "desc": f"{i['issue']['issueContent'][:75]}..." if len(i['issue']['issueContent']) > 75 else i['issue']['issueContent']
                 })
 

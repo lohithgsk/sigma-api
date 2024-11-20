@@ -30,6 +30,7 @@ from io import StringIO
 
 ########################################################################
 
+os.system('sudo apt-get install zbar-tools')
 
 def qr_decoder(image):
     gray_img = cv2.cvtColor(image, 0)

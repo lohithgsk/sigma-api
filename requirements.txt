@@ -9,3 +9,4 @@ Flask-Cors==4.0.1
 gunicorn==22.0.0
 requests
 flask_jwt_extended
+pyzbar[scripts]

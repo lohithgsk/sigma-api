@@ -64,7 +64,8 @@ CORS(app)
 
 mongo = PyMongo(app)
 # BASE_URL = "https://api.gms.intellx.in"
-BASE_URL = "http://127.0.0.1:5001"
+# BASE_URL = "http://127.0.0.1:5001"
+BASE_URL = "https://sigma-api.vercel.app"
 
 
 def get_hash(clear: str):

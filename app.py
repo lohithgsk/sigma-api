@@ -27,21 +27,28 @@ import base64
 
 from PIL import Image
 from io import StringIO
+import io
+import matplotlib.pyplot as plt
 
 ########################################################################
 
-
+# Function to decode QR code using OpenCV
 def qr_decoder(image):
-    gray_img = cv2.cvtColor(image, 0)
-    barcode = decode(gray_img)
-    barcodeData = barcode[0].data.decode("utf-8")
-    barcodeType = barcode[0].type
-    return str(barcodeData)
+    # Initialize the QRCode detector
+    detector = cv2.QRCodeDetector()
 
+    # Detect and decode the QR code
+    data, vertices_array, _ = detector.detectAndDecode(image)
 
+    if vertices_array is not None and data:
+        return data  # Return the decoded data as a string
+
+    raise ValueError("No QR code found in the image.")
+
+# Function to convert a Base64 string to an OpenCV-compatible image
 def readb64(uri):
     encoded_data = uri.split(",")[1]
-    nparr = np.fromstring(base64.b64decode(encoded_data), np.uint8)
+    nparr = np.frombuffer(base64.b64decode(encoded_data), np.uint8)
     img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
     return img
 
@@ -58,8 +65,8 @@ jwt = JWTManager(app)
 CORS(app)
 
 mongo = PyMongo(app)
-BASE_URL = "https://api.gms.intellx.in"
-# BASE_URL = "http://127.0.0.1:5001"
+# BASE_URL = "https://api.gms.intellx.in"
+BASE_URL = "http://127.0.0.1:5001"
 
 
 def get_hash(clear: str):
@@ -69,8 +76,8 @@ def get_hash(clear: str):
 def sendmail(
     mail_met, receiver, subject, short_subject, text, html="NOT INPUT BY USER."
 ):
-    mailid = "ct.gms@psgtech.ac.in"
-    mailps = "sigmaM4IN7"
+    mailid = os.getenv("EMAILID")
+    mailps = os.getenv("EMAILPS")
     if html == "NOT INPUT BY USER.":
         html = render_template(
             "email.html",

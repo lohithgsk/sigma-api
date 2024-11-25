@@ -32,7 +32,7 @@ import matplotlib.pyplot as plt
 
 ########################################################################
 
-# Function to decode QR code using OpenCV
+
 def qr_decoder(image):
     # Initialize the QRCode detector
     detector = cv2.QRCodeDetector()

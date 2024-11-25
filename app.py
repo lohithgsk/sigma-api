@@ -32,7 +32,10 @@ import matplotlib.pyplot as plt
 
 ########################################################################
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> dd8fdd73101a097617796e6e5ffd0a11fa8f4fbb
 def qr_decoder(image):
     # Initialize the QRCode detector
     detector = cv2.QRCodeDetector()

@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SIGMA - RESPONSE</title>
+    <style>
+        /* Reset and Base Styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(to bottom, #d9eaff, #ffffff);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            color: #333;
+        }
+        .navbar {
+            width: 100%;
+            background: rgba(255, 255, 255, 0); /* Semi-transparent white */
+            color: #333; /* Dark text for contrast */
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 1000;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(8px); /* Optional: Adds a blur effect to the background */
+        }
+        .navbar .logo {
+            font-size: 1.2rem;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        /* Container Styles */
+        .container {
+            background: rgba(255, 255, 255, 0.9); /* Semi-transparent white */
+            padding: 2rem;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
+            border-radius: 16px;
+            max-width: 420px;
+            width: 90%;
+            text-align: center;
+            margin-top: 120px; /* To adjust for fixed navbar */
+            animation: fadeIn 1s ease-in-out;
+        }
+
+        /* Text Styles */
+        h2 {
+            color: #4A4A4A;
+            margin-bottom: 1.5rem;
+            font-size: 1.8rem;
+            line-height: 1.4;
+        }
+
+        p {
+            font-size: 1rem;
+            line-height: 1.6;
+            color: #555;
+        }
+
+        /* Footer Styles */
+        footer {
+            background: #333;
+            width: 100%;
+            padding: 1rem 2rem;
+            text-align: center;
+            color: white;
+            position: absolute;
+            bottom: 0;
+        }
+        footer a {
+            color: #ffef85;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        footer a:hover {
+            text-decoration: underline;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 480px) {
+            .navbar .logo {
+                font-size: 1rem;
+            }
+            .navbar a {
+                font-size: 0.9rem;
+            }
+            h2 {
+                font-size: 1.5rem;
+            }
+            .container {
+                padding: 1.5rem;
+            }
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <div class="navbar">
+        <div class="logo"><img src="/static/sigma-bgfree.png" style="height: 40px;width: 100px;"></div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="container">
+        <h2>{{ message }}</h2>
+        <p>Please feel free to contact ct.gms@psgtech.ac.in for any inquiries or further assistance.</p>
+    </div>
+
+    <!-- Footer -->
+    <footer>
+        <p style="color: white;">SIGMA | General Maintenance Software | PSGCT 2024</p>
+    </footer>
+</body>
+</html>

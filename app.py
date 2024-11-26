@@ -16,6 +16,7 @@ from datetime import datetime, timedelta
 from dotenv import load_dotenv
 import os
 import time
+from pytz import timezone
 
 load_dotenv()
 ########################################################################
@@ -64,8 +65,8 @@ CORS(app)
 
 mongo = PyMongo(app)
 # BASE_URL = "https://api.gms.intellx.in"
-# BASE_URL = "http://127.0.0.1:5001"
-BASE_URL = "https://sigma-api.vercel.app"
+BASE_URL = "http://127.0.0.1:5001"
+# BASE_URL = "https://sigma-api.vercel.app"
 
 
 def get_hash(clear: str):
@@ -129,7 +130,7 @@ def createIssue(data: dict):
     }
     """
 
-    rightNow = datetime.now()
+    rightNow = datetime.now(timezone("Asia/Kolkata"))
     newEntry = {
         "issueNo": "".join(random.choices(string.ascii_uppercase + string.digits, k=5)),
         "time": rightNow.strftime("%I:%M %p"),
@@ -176,7 +177,7 @@ def openIssue(issueId: str, personId: str):
     issue as open, and add "opened by personId" to the logs.
     """
 
-    rightNow = datetime.now()
+    rightNow = datetime.now(timezone("Asia/Kolkata"))
 
     issueEntry = mongo.db.dataset.find_one({"issueNo": issueId})
 
@@ -204,7 +205,7 @@ def closeIssue(issueId: str, personId: str):
     issue as close, and add "closed by personId" to the logs.
     """
 
-    rightNow = datetime.now()
+    rightNow = datetime.now(timezone("Asia/Kolkata"))
 
     issueEntry = mongo.db.dataset.find_one({"issueNo": issueId})
 
@@ -323,7 +324,7 @@ def client_confirm_email(confkey):
     if not user:
         # Render template for invalid confirmation key
         return render_template(
-            "confirm_email.html",
+            "response.html",
             message="The confirmation key you provided is invalid. Please check your email or contact support."
         ), 400
 
@@ -814,6 +815,9 @@ def manager_confirm_email(confkey):
 
     if not user_to_confirm:
         return jsonify({"message": "Invalid confirmation key"}), 400
+    
+    if user_to_confirm.get("confirmed"):
+        return jsonify({"message": "E-Mail is already confirmed"}), 200
 
     mod_key = str(uuid.uuid4()).split("-")[0].upper()
     mongo.db.personnel.update_one(
@@ -843,9 +847,9 @@ def manager_confirm_email(confkey):
                 f"""Dear {user["name"]},
                 <br/>{name} [{id}@psgtech.ac.in] has registered as a maintenance staff under the "SIGMA" General Maintenance Software by PSG College of Technology. Please, as a moderator, approve the user, so {name} can start using the application!
                 <br/><br/>
-                <a style="text-decoration:none;background-color: #2A4BAA;font-size: 20px;border: none;color: white;border-radius: 10px;padding-top: 10px;padding-bottom: 10px;padding-left: 30px;padding-right: 30px;" href="{BASE_URL}/manager/approve/{mod_key}">Approve User</a>
+                <a style="text-decoration:none;background-color: #2A4BAA;font-size: 20px;border: none;color: white;border-radius: 10px;padding-top: 10px;padding-bottom: 10px;padding-left: 30px;padding-right: 30px;" href="{BASE_URL}/manager/approve/{confkey}">Approve User</a>
                 <br/><br/>
-                If the button does not work, please visit {BASE_URL}/manager/approve/{mod_key} and confirm.
+                If the button does not work, please visit {BASE_URL}/manager/approve/{confkey} and confirm.
                 <br/><br/>
                 If you do <b>NOT</b> know who this is, please <b>do NOT</b> confirm.
                 <br/>Thank You.""",
@@ -874,6 +878,9 @@ def manager_approve_email(confkey):
 
     if not user_to_approve:
         return jsonify({"message": "Invalid confirmation key"}), 400
+    
+    if user_to_approve.get("approved"):
+        return jsonify({"message": "User is already approved"}), 200
 
     mod_key = str(uuid.uuid4()).split("-")[0].upper()
     mongo.db.personnel.update_one(
@@ -915,30 +922,29 @@ def manager_approve_email(confkey):
     return (
         jsonify(
             {
-                "message": f"""You have approved this user. If you wish to escalate this person's privileges and approve as a moderator, click the following button after approval from the previous step:
-        <br/><br/>
-        <a style="text-decoration:none;background-color: #2A4BAA;font-size: 20px;border: none;color: white;border-radius: 10px;padding-top: 10px;padding-bottom: 10px;padding-left: 30px;padding-right: 30px;" href="{BASE_URL}/manager/escalate/{mod_key}">Approve User</a>
-        <br/><br/>
-        If the button does not work, please visit {BASE_URL}/manager/escalate/{mod_key} and confirm.
-        <br/><br/>"""
+                "message": "You have approved this user. If you wish to escalate this person's privileges and approve as a moderator, check email for further instructions."
             }
         ),
         200,
     )
 
 
-@app.route("/manager/escalate/<confkey>", methods=["GET"])
-def manager_escalate_email(confkey):
+@app.route("/manager/escalate/<modkey>", methods=["GET"])
+def manager_escalate_email(modkey):
     users = list(mongo.db.personnel.find())
     user_to_escalate = None
 
     for user in users:
-        if user.get("modkey") == confkey:
+        if user.get("modkey") == modkey:
             user_to_escalate = user
             break
 
     if not user_to_escalate:
-        return jsonify({"message": "Invalid confirmation key"}), 400
+        return jsonify({"message": "Invalid moderator key"}), 400
+
+    # Check if the user is already a moderator
+    if user_to_escalate.get("mod") == 1:
+        return jsonify({"message": "User is already a moderator"}), 200
 
     mongo.db.personnel.update_one(
         {"_id": user_to_escalate.get("_id")},
@@ -1026,6 +1032,7 @@ def manager_reset_password():
 
 @app.route("/manager/forgot_password", methods=["POST"])
 def manager_forgot_password():
+    """Function Helping Manager Reset Password"""
     data = request.get_json()
     user_id = data.get("id")
 

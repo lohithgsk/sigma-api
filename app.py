@@ -814,10 +814,17 @@ def manager_confirm_email(confkey):
             break
 
     if not user_to_confirm:
-        return jsonify({"message": "Invalid confirmation key"}), 400
+        return render_template(
+            "response.html",
+            message="Invalid confirmation key"
+        ), 400
+
     
     if user_to_confirm.get("confirmed"):
-        return jsonify({"message": "E-Mail is already confirmed"}), 200
+        return render_template(
+            "response.html",
+            message="E-Mail is already confirmed"
+        ), 200
 
     mod_key = str(uuid.uuid4()).split("-")[0].upper()
     mongo.db.personnel.update_one(
@@ -855,14 +862,10 @@ def manager_confirm_email(confkey):
                 <br/>Thank You.""",
             )
 
-    return (
-        jsonify(
-            {
-                "message": 'Welcome to "SIGMA" General Maintenance Software by PSG College of Technology! Your E-Mail has been Confirmed. Please await approval from a moderator, so you can start using the application!'
-            }
-        ),
-        200,
-    )
+    return render_template(
+        "response.html",
+        message="Welcome to \"SIGMA\" General Maintenance Software by PSG College of Technology! Your E-Mail has been Confirmed. Please await approval from a moderator, so you can start using the application!"
+    ), 200
 
 
 # account approval from a moderator
@@ -876,11 +879,17 @@ def manager_approve_email(confkey):
             user_to_approve = user
             break
 
-    if not user_to_approve:
-        return jsonify({"message": "Invalid confirmation key"}), 400
+    if not user_to_approve:    
+        return render_template(
+            "response.html",
+            message="Invalid confirmation key"
+        ), 400
     
     if user_to_approve.get("approved"):
-        return jsonify({"message": "User is already approved"}), 200
+        return render_template(
+            "response.html",
+            message="User is already approved"
+        ), 200
 
     mod_key = str(uuid.uuid4()).split("-")[0].upper()
     mongo.db.personnel.update_one(
@@ -919,14 +928,10 @@ def manager_approve_email(confkey):
         <br/>Thank You.""",
     )
 
-    return (
-        jsonify(
-            {
-                "message": "You have approved this user. If you wish to escalate this person's privileges and approve as a moderator, check email for further instructions."
-            }
-        ),
-        200,
-    )
+    return render_template(
+        "response.html",
+        message="You have approved this user. If you wish to escalate this person's privileges and approve as a moderator, check email for further instructions."
+    ), 200
 
 
 @app.route("/manager/escalate/<modkey>", methods=["GET"])
@@ -939,12 +944,18 @@ def manager_escalate_email(modkey):
             user_to_escalate = user
             break
 
-    if not user_to_escalate:
-        return jsonify({"message": "Invalid moderator key"}), 400
+    if not user_to_escalate:    
+        return render_template(
+            "response.html",
+            message="Invalid moderator key"
+        ), 400
 
     # Check if the user is already a moderator
-    if user_to_escalate.get("mod") == 1:
-        return jsonify({"message": "User is already a moderator"}), 200
+    if user_to_escalate.get("mod") == 1:    
+        return render_template(
+            "response.html",
+            message="User is already a moderator"
+        ), 200
 
     mongo.db.personnel.update_one(
         {"_id": user_to_escalate.get("_id")},
@@ -964,14 +975,10 @@ def manager_escalate_email(modkey):
         <br/>Thank You.""",
     )
 
-    return (
-        jsonify(
-            {
-                "message": "You have escalated this user's privileges to moderator status."
-            }
-        ),
-        200,
-    )
+    return render_template(
+        "response.html",
+        message="You have escalated this user's privileges to moderator status."
+    ), 200
 
 
 @app.route("/manager/reject/<user_id>", methods=["DELETE"])

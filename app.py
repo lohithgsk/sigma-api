@@ -1,7 +1,7 @@
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 import ssl, smtplib, hashlib, uuid
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify, render_template, render_template_string
 from flask_pymongo import PyMongo
 import json
 import random, string, requests, subprocess
@@ -64,8 +64,8 @@ CORS(app)
 
 mongo = PyMongo(app)
 # BASE_URL = "https://api.gms.intellx.in"
-# BASE_URL = "http://127.0.0.1:5001"
-BASE_URL = "https://sigma-api.vercel.app"
+BASE_URL = "http://127.0.0.1:5001"
+# BASE_URL = "https://sigma-api.vercel.app"
 
 
 def get_hash(clear: str):
@@ -316,22 +316,28 @@ def client_register():
         201,
     )
 
-
 @app.route("/client/confirm/<confkey>", methods=["GET"])
 def client_confirm_email(confkey):
     user = mongo.db.users.find_one({"confkey": confkey})
 
     if not user:
-        return jsonify({"message": "Invalid confirmation key"}), 400
+        # Render template for invalid confirmation key
+        return render_template(
+            "confirm_email.html",
+            message="The confirmation key you provided is invalid. Please check your email or contact support."
+        ), 400
 
+    # Update user as confirmed
     mongo.db.users.update_one(
         {"confkey": confkey}, {"$set": {"confirmed": True, "confkey": ""}}
     )
 
-    return (
-        jsonify({"message": "Email confirmed successfully. You can now log in."}),
-        200,
-    )
+    # Render template for successful confirmation
+    return render_template(
+        "confirm_email.html",
+        message="Email confirmed successfully! You can now log in to your account."
+    ), 200
+
 
 
 @app.route("/client/login", methods=["POST"])

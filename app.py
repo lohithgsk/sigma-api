@@ -335,7 +335,7 @@ def client_confirm_email(confkey):
 
     # Render template for successful confirmation
     return render_template(
-        "confirm_email.html",
+        "response.html",
         message="Email confirmed successfully! You can now log in to your account."
     ), 200
 

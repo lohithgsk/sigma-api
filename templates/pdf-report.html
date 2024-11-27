@@ -1,0 +1,123 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML>
+<HEAD>
+   <META HTTP-EQUIV="CONTENT-TYPE" CONTENT="text/html; charset=utf-8">
+   <TITLE>SIGMA</TITLE>
+   <META NAME="GENERATOR" CONTENT="OpenOffice 4.1.11  (Unix)">
+   <META NAME="AUTHOR" CONTENT="TECHNICAL PROPOSAL DOCUMENT">
+   <META NAME="CREATED" CONTENT="20211228;5460000">
+   <META NAME="CHANGEDBY" CONTENT="Aaditya Rengarajan">
+   <META NAME="CHANGED" CONTENT="20220111;1043200">
+   <META NAME="AppVersion" CONTENT="16.0000">
+   <META NAME="DocSecurity" CONTENT="0">
+   <META NAME="HyperlinksChanged" CONTENT="false">
+   <META NAME="LinksUpToDate" CONTENT="false">
+   <META NAME="ScaleCrop" CONTENT="false">
+   <META NAME="ShareDoc" CONTENT="false">
+   <STYLE TYPE="text/css">
+   <!--
+      @page { margin-left: 1in; margin-right: 1.18in; margin-top: 0.49in; margin-bottom: 0.49in;}
+      P { margin-bottom: 0.08in; direction: ltr; color: #000000; widows: 2; orphans: 2 }
+   -->
+   </STYLE>
+</HEAD>
+<BODY LANG="en-US" TEXT="#000000" DIR="LTR" STYLE="padding:5%;">
+<DIV TYPE=HEADER>
+   <div style="float:left;width:80%">
+   <P ALIGN=LEFT STYLE="margin-bottom: 0in; line-height: 100%"><FONT FACE="Courier New, serif"><FONT SIZE=2 STYLE="font-size: 9pt">ΣIGMA
+   REPORT COPY</FONT></FONT></P>
+   <P ALIGN=LEFT STYLE="margin-bottom: 0.47in; line-height: 100%"><FONT FACE="Courier New, serif"><FONT SIZE=2 STYLE="font-size: 9pt">THIS
+   DOCUMENT HAS BEEN AUTO-GENERATED FOR MEMBERS OF PSG COLLEGE OF
+   TECHNOLOGY</FONT></FONT></P>
+   </div>
+   <div style="float:right;width:20%;height: 50%;margin-right:-5%">
+   <IMG SRC="{{url_for('static',filename='images/LOGO_PDF.png')}}" width=125px align=right/>
+   </div>
+</DIV>
+<P STYLE="margin-bottom: 0.11in"><FONT FACE="Courier New, serif"><B>REPORT
+NUMBER {{issue["issueNo"]}}</B></FONT></P>
+<OL>
+   <LI><P STYLE="margin-bottom: 0.11in"><FONT FACE="Courier New, serif"><FONT SIZE=2 STYLE="font-size: 9pt"><B>REPORT</B></FONT></FONT></P>
+</OL>
+<P STYLE="margin-left: 0.25in; margin-bottom: 0.11in"><FONT FACE="Courier New, serif"><FONT SIZE=2 STYLE="font-size: 9pt">{{issue["issue"]["issueContent"]}}</FONT></FONT></P>
+<OL START=2>
+   <LI><P STYLE="margin-bottom: 0.11in"><FONT FACE="Courier New, serif"><FONT SIZE=2 STYLE="font-size: 9pt"><B>REPORT
+   DETAILS</B></FONT></FONT></P>
+</OL>
+<P STYLE="margin-left: 0.25in; margin-bottom: 0.11in"><FONT FACE="Courier New, serif"><FONT SIZE=2 STYLE="font-size: 9pt">Location
+: {{issue["issue"]["block"]}} Block – Floor {{issue["issue"]["floor"]}}</FONT></FONT></P>
+{% if issue["anonymity"]=="false" %}
+<P STYLE="margin-left: 0.25in; margin-bottom: 0.11in"><FONT FACE="Courier New, serif"><FONT SIZE=2 STYLE="font-size: 9pt">Issuer
+Name : {{issue["raised_by"]["name"]}}</FONT></FONT></P>
+<P STYLE="margin-left: 0.25in; margin-bottom: 0.11in"><FONT FACE="Courier New, serif"><FONT SIZE=2 STYLE="font-size: 9pt">Issuer
+ID : {{issue["raised_by"]["id"]}}</FONT></FONT></P>
+{% else %}
+<P STYLE="margin-left: 0.25in; margin-bottom: 0.11in"><FONT FACE="Courier New, serif"><FONT SIZE=2 STYLE="font-size: 9pt">Issuer
+Status : Anonymous Issuer</FONT></FONT></P>
+{% endif %}
+<P STYLE="margin-left: 0.25in; margin-bottom: 0.11in"><FONT FACE="Courier New, serif"><FONT SIZE=2 STYLE="font-size: 9pt">Type
+of Report : {{issue["issue"]["issueType"]}}</FONT></FONT></P>
+<P STYLE="margin-left: 0.25in; margin-bottom: 0.11in"><FONT FACE="Courier New, serif"><FONT SIZE=2 STYLE="font-size: 9pt">Report
+Category : {{issue["issue"]["issueCat"]}}</FONT></FONT></P>
+<P STYLE="margin-left: 0.25in; margin-bottom: 0.11in"><FONT FACE="Courier New, serif"><FONT SIZE=2 STYLE="font-size: 9pt">Action
+Item : {{issue["issue"]["actionItem"]}}</FONT></FONT></P>
+<OL START=3>
+   <LI><P STYLE="margin-bottom: 0.11in"><FONT FACE="Courier New, serif"><FONT SIZE=2 STYLE="font-size: 9pt"><B>ISSUE
+   STATUS AND CHANGELOG</B></FONT></FONT></P>
+</OL>
+<P STYLE="margin-left: 0.25in; margin-bottom: 0.11in"><FONT FACE="Courier New, serif"><FONT SIZE=2 STYLE="font-size: 9pt">Issue
+Status : {% if issue["status"] == "CLOSE" %}CLOSED{%else%}OPEN{% endif %}</FONT></FONT></P>
+<P STYLE="margin-left: 0.25in; margin-bottom: 0.11in"><FONT FACE="Courier New, serif"><FONT SIZE=2 STYLE="font-size: 9pt">CHANGELOG
+-</FONT></FONT></P>
+{% for i in issue["log"] %}
+                  <P STYLE="margin-left: 0.25in; margin-bottom: 0.11in"><FONT FACE="Courier New, serif"><FONT SIZE=2 STYLE="font-size: 9pt">[{{i["date"]}}] {{i["by"]}} {{i["action"]}} the report.</FONT></FONT></P>
+{% endfor %}
+
+<OL START=4>
+   <LI><P STYLE="margin-bottom: 0.11in"><FONT FACE="Courier New, serif"><FONT SIZE=2 STYLE="font-size: 9pt"><B>SURVEY
+   RESULTS</B></FONT></FONT></P>
+</OL>
+{% for i in issue["survey"].keys() %}
+                  <P STYLE="margin-left: 0.25in; margin-bottom: 0.11in"><FONT FACE="Courier New, serif"><FONT SIZE=2 STYLE="font-size: 9pt">{{i | upper}} : {{issue["survey"][i]}}/10</FONT></FONT></P>
+                  {% endfor %}
+<OL START=5>
+   <LI><P STYLE="margin-bottom: 0.11in"><FONT FACE="Courier New, serif"><FONT SIZE=2 STYLE="font-size: 9pt"><B>ASSOCIATED CONVERSATION THREAD</B></FONT></FONT></P>
+</OL>
+{% for i in issue["comments"] %}
+<P STYLE="margin-left: 0.25in; margin-bottom: 0.11in"><FONT FACE="Courier New, serif"><FONT SIZE=2 STYLE="font-size: 9pt">[{{i["date"]}}] {{i["by"]}} : {{i["content"]}}</FONT></FONT></P>
+{% endfor %}
+<P STYLE="margin-bottom: 0.11in"><BR><BR>
+</P>
+<P STYLE="margin-bottom: 0.11in"><BR><BR>
+</P>
+<P STYLE="margin-bottom: 0.11in"><FONT FACE="Courier New, serif"><FONT SIZE=2 STYLE="font-size: 9pt">I
+hereby state and confirm that, all of the information published in
+this document is true and I take responsibility for raising this
+report.</FONT></FONT></P>
+<P STYLE="margin-bottom: 0.11in"><BR><BR>
+</P>
+<P STYLE="margin-bottom: 0.11in"><FONT FACE="Courier New, serif"><FONT SIZE=2 STYLE="font-size: 9pt">Acceptance
+of factual information published by issuer</FONT></FONT></P>
+<P ALIGN=RIGHT STYLE="margin-bottom: 0.11in"><FONT FACE="Courier New, serif"><FONT SIZE=2 STYLE="font-size: 9pt">(Signature)</FONT></FONT></P>
+<P STYLE="margin-bottom: 0.11in"><FONT FACE="Courier New, serif"><FONT SIZE=2 STYLE="font-size: 9pt">Date:</FONT></FONT></P>
+<P STYLE="margin-bottom: 0.11in"><FONT FACE="Courier New, serif"><FONT SIZE=2 STYLE="font-size: 9pt">Place:&nbsp;&nbsp;</FONT></FONT></P>
+<P STYLE="margin-top: 0.03in; margin-bottom: 0in; line-height: 100%"><FONT FACE="Times New Roman, serif"><FONT SIZE=3><FONT FACE="Courier New, serif"><FONT SIZE=2 STYLE="font-size: 9pt">Full
+Name:&nbsp;</FONT></FONT></FONT></FONT></P>
+<P STYLE="margin-top: 0.14in; margin-bottom: 0in; line-height: 100%"><FONT FACE="Times New Roman, serif"><FONT SIZE=3><FONT FACE="Courier New, serif"><FONT SIZE=2 STYLE="font-size: 9pt">Mobile
+Number:&nbsp;</FONT></FONT></FONT></FONT></P>
+<P STYLE="margin-top: 0.14in; margin-bottom: 0in; line-height: 100%"><FONT FACE="Times New Roman, serif"><FONT SIZE=3><FONT FACE="Courier New, serif"><FONT SIZE=2 STYLE="font-size: 9pt">Email
+ID: </FONT></FONT></FONT></FONT>
+</P>
+<DIV TYPE=FOOTER>
+   <P ALIGN=CENTER STYLE="margin-top: 0.65in; margin-bottom: 0in; line-height: 100%">
+   <FONT FACE="Courier New, serif"><FONT SIZE=1 STYLE="font-size: 8pt">THIS
+   DOCUMENT MAY BE USED AS A FORMAL PROOF OF REPORT TO DISPLAY TO
+   WHOMSOEVER IS THE CONCERNED AUTHORITY</FONT></FONT></P>
+   <P ALIGN=CENTER STYLE="margin-bottom: 0in; line-height: 100%"><FONT FACE="Courier New, serif"><FONT SIZE=1 STYLE="font-size: 8pt">Page
+   </FONT></FONT><SDFIELD TYPE=PAGE SUBTYPE=RANDOM FORMAT=ARABIC>1</SDFIELD><FONT FACE="Courier New, serif"><FONT SIZE=1 STYLE="font-size: 8pt">
+   of </FONT></FONT><SDFIELD TYPE=DOCSTAT SUBTYPE=PAGE FORMAT=ARABIC>1</SDFIELD></P>
+   <P STYLE="margin-bottom: 0in; line-height: 100%"><BR>
+   </P>
+</DIV>
+</BODY>
+</HTML>

@@ -1,7 +1,7 @@
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 import ssl, smtplib, hashlib, uuid
-from flask import Flask, request, jsonify, render_template, render_template_string
+from flask import Flask, request, jsonify, render_template, render_template_string, Response
 from flask_pymongo import PyMongo
 import json
 import random, string, requests, subprocess
@@ -26,9 +26,20 @@ import numpy as np
 import base64
 
 from PIL import Image
-from io import StringIO
+from io import StringIO, BytesIO
 import io
 
+
+########################################################################
+
+from reportlab.lib.pagesizes import A4
+from reportlab.pdfgen import canvas
+from reportlab.lib import colors
+from reportlab.platypus import Table, TableStyle
+from reportlab.lib.units import inch
+import matplotlib.pyplot as plt
+from reportlab.lib.styles import ParagraphStyle
+from reportlab.platypus import Paragraph
 
 ########################################################################
 
@@ -1387,6 +1398,297 @@ def account_page():
 
     user["_id"] = str(user["_id"])  # Convert ObjectId to string for JSON serialization
     return jsonify({"user": user}), 200
+
+
+
+#################################################################################################################
+
+
+PAGE_WIDTH, PAGE_HEIGHT = A4
+MARGIN = 50
+
+
+
+# Draw page border
+def draw_border(pdf):
+    pdf.setStrokeColor(colors.black)
+    pdf.rect(MARGIN, MARGIN, PAGE_WIDTH - 2 * MARGIN, PAGE_HEIGHT - 2 * MARGIN)
+
+# Add Sigma header
+def add_sigma_header(pdf):
+    sigma_url = "static/head.jpg"  # Path to the Sigma header image
+    sigma_img = Image.open(sigma_url)
+    
+    # Calculate image dimensions and positions
+    img_width = PAGE_WIDTH - 2 * MARGIN
+    img_height = 75
+    img_x = MARGIN
+    img_y = PAGE_HEIGHT - MARGIN - img_height
+
+    # Draw black border (slightly larger than the image)
+    border_thickness = 2
+    pdf.setStrokeColor(colors.black)
+    pdf.setLineWidth(border_thickness)
+    pdf.rect(img_x - border_thickness / 2, img_y - border_thickness / 2, img_width + border_thickness, img_height + border_thickness)
+
+    # Draw the image
+    pdf.drawInlineImage(sigma_img, img_x, img_y, width=img_width, height=img_height)
+
+def add_charts(pdf, from_date, to_date):
+    # Fetch data dynamically from MongoDB
+    issues = list(mongo.db.dataset.find({"date": {"$gte": from_date, "$lte": to_date}}))
+
+    # Initialize counters
+    categories = {}
+    open_issues_count = 0
+    closed_issues_count = 0
+
+    for issue in issues:
+        category = issue["issue"].get("issueCat", "Unknown")
+        status = issue.get("status", "Unknown")
+
+        # Count open and closed issues
+        if status == "OPEN":
+            open_issues_count += 1
+        elif status == "CLOSE":
+            closed_issues_count += 1
+
+        # Count issues by category
+        if category not in categories:
+            categories[category] = {"open": 0, "closed": 0}
+        if status == "OPEN":
+            categories[category]["open"] += 1
+        elif status == "CLOSE":
+            categories[category]["closed"] += 1
+
+    # Prepare data for charts
+    category_names = list(categories.keys())
+    open_issues = [categories[cat]["open"] for cat in category_names]
+    closed_issues = [categories[cat]["closed"] for cat in category_names]
+
+    # --- Bar Chart ---
+    fig, ax = plt.subplots(figsize=(5, 2))
+    bar_width = 0.4
+    x = range(len(category_names))
+
+    ax.bar(x, open_issues, width=bar_width, label="Open Issues", color="orange")
+    ax.bar([p + bar_width for p in x], closed_issues, width=bar_width, label="Closed Issues", color="blue")
+
+    ax.set_xticks([p + bar_width / 2 for p in x])
+    ax.set_xticklabels(category_names, rotation=45, ha="right")
+    ax.set_title("Issues by Category")
+    ax.set_ylabel("# of Issues")
+    ax.legend()
+
+    # Save bar chart to BytesIO buffer
+    bar_chart_buffer = BytesIO()
+    plt.savefig(bar_chart_buffer, format="PNG", bbox_inches="tight")
+    plt.close(fig)
+    bar_chart_buffer.seek(0)
+
+    # Embed bar chart in the PDF
+    bar_chart_image = Image.open(bar_chart_buffer)
+    pdf.drawInlineImage(bar_chart_image, (PAGE_WIDTH / 2) - 200, PAGE_HEIGHT - 500, width=400, height=200)
+
+    # Add pie charts
+    add_pie_charts(pdf, categories, open_issues_count, closed_issues_count)
+
+
+def add_pie_charts(pdf, categories, open_issues_count, closed_issues_count):
+    # --- Pie Chart 1: Categories Distribution ---
+    labels1 = list(categories.keys())
+    sizes1 = [sum(cat_data.values()) for cat_data in categories.values()]
+    colors1 = plt.cm.tab20.colors[:len(labels1)]
+
+    fig1, ax1 = plt.subplots()
+    ax1.pie(
+        sizes1,
+        labels=labels1,
+        autopct="%1.1f%%" if sum(sizes1) > 0 else None,
+        startangle=90,
+        colors=colors1,
+    )
+    ax1.set_title("Complaint Categories Distribution")
+
+    # Save first pie chart to buffer
+    pie1_buffer = BytesIO()
+    plt.savefig(pie1_buffer, format="PNG", bbox_inches="tight")
+    pie1_buffer.seek(0)
+    plt.close(fig1)
+    pie1_image = Image.open(pie1_buffer)
+
+    # Embed first pie chart in the PDF
+    pdf.drawInlineImage(pie1_image, MARGIN + 50, PAGE_HEIGHT - 730, width=200, height=200)
+
+    # --- Pie Chart 2: Open vs Closed Issues ---
+    labels2 = ["Open Issues", "Closed Issues"]
+    sizes2 = [open_issues_count, closed_issues_count]
+    colors2 = ["orange", "blue"]
+
+    fig2, ax2 = plt.subplots()
+    ax2.pie(
+        sizes2,
+        labels=labels2,
+        autopct="%1.1f%%" if sum(sizes2) > 0 else None,
+        startangle=90,
+        colors=colors2,
+    )
+    ax2.set_title("Open vs Closed Issues")
+
+    # Save second pie chart to buffer
+    pie2_buffer = BytesIO()
+    plt.savefig(pie2_buffer, format="PNG", bbox_inches="tight")
+    pie2_buffer.seek(0)
+    plt.close(fig2)
+    pie2_image = Image.open(pie2_buffer)
+
+    # Embed second pie chart in the PDF
+    pdf.drawInlineImage(pie2_image, MARGIN + 250, PAGE_HEIGHT - 730, width=200, height=200)
+
+
+def add_table(pdf, table_data, start_y, width=((PAGE_WIDTH - 2 * MARGIN) / 2) - PAGE_WIDTH/3.5):
+    table = Table(table_data)
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+    ]))
+    table.wrapOn(pdf, width, PAGE_HEIGHT - start_y)
+    table.drawOn(pdf, width, start_y)
+
+
+# Add footer with page number
+def add_footer(pdf, page_no):
+    pdf.setFont("Helvetica", 10)
+    pdf.drawString(PAGE_WIDTH / 2 - 20, MARGIN / 2, f"Page {page_no}")
+
+# Add blank page at the end
+def add_blank_page(pdf):
+    draw_border(pdf)
+    # pdf.setFont("Helvetica-Italic", 14)
+    pdf.drawString(PAGE_WIDTH / 2 - 100, PAGE_HEIGHT / 2, "This page is intentionally left blank.")
+    pdf.setFont("Helvetica", 12)
+    pdf.drawString(PAGE_WIDTH / 2 - 35, MARGIN / 2, "End of Report")
+
+
+
+@app.route('/manager/generate-pdf', methods=['GET'])
+def generate_pdf():
+    # Parse query parameters for date range
+    from_date_str = request.args.get('from', None)
+    to_date_str = request.args.get('to', None)
+
+    if not from_date_str or not to_date_str:
+        return jsonify({"error": "Both 'from' and 'to' date parameters are required."}), 400
+
+    try:
+        from_date = datetime.strptime(from_date_str, "%d-%m-%Y")
+        to_date = datetime.strptime(to_date_str, "%d-%m-%Y")
+    except ValueError:
+        return jsonify({"error": "Invalid date format. Use 'DD-MM-YYYY'."}), 400
+
+    # Fetch data from the MongoDB collection within the date range
+    issues = list(mongo.db.dataset.find({"date": {"$gte": from_date_str, "$lte": to_date_str}}))
+
+    # Initialize counters and accumulators
+    total_days = 0
+    closed_issues_count = 0
+    open_issues_count = 0
+    total_close_time = 0
+    complaint_categories = {}
+
+    for issue in issues:
+        try:
+            # Extract issue details
+            status = issue.get("status")
+            category = issue["issue"].get("issueCat", "Unknown")
+            logs = issue.get("log", [])
+
+            # Count open and closed issues
+            if status == "CLOSE":
+                closed_issues_count += 1
+            elif status == "OPEN":
+                open_issues_count += 1
+
+            # Calculate the most common category
+            complaint_categories[category] = complaint_categories.get(category, 0) + 1
+
+            # Calculate total days from logs and closing times
+            if logs:
+                start_date = datetime.strptime(logs[0]["date"], "%d-%m-%y %H:%M")
+                close_dates = [
+                    datetime.strptime(log["date"], "%d-%m-%y %H:%M")
+                    for log in logs
+                    if log["action"] == "closed"
+                ]
+                if close_dates:
+                    total_days += (close_dates[-1] - start_date).days
+                    total_close_time += sum(
+                        (close_date - start_date).days for close_date in close_dates
+                    )
+
+        except Exception as e:
+            print(f"Error processing issue {issue.get('_id')}: {e}")
+
+    # Compute metrics
+    total_issues = closed_issues_count + open_issues_count
+    avg_close_time = total_close_time / closed_issues_count if closed_issues_count > 0 else 0
+    most_common_category = max(complaint_categories, key=complaint_categories.get) if complaint_categories else "N/A"
+
+    # PDF generation remains unchanged, update table_data with new metrics
+    buffer = BytesIO()
+    pdf = canvas.Canvas(buffer, pagesize=A4)
+
+    # Page 1: Overview
+    draw_border(pdf)
+    add_sigma_header(pdf)
+    pdf.setFont("Helvetica-Bold", 14)
+    pdf.drawString(((PAGE_WIDTH - 2 * MARGIN) / 2) - 40, PAGE_HEIGHT - 150, "Maintenance Statistics Report")
+    pdf.setFont("Helvetica", 12)
+    pdf.drawString(((PAGE_WIDTH - 2 * MARGIN) / 2) - 25, PAGE_HEIGHT - 170, f"From {from_date_str} to {to_date_str}")
+    table_data = [
+        ["Total # of Complaints", str(total_issues)],
+        ["# of Closed Complaints", str(closed_issues_count)],
+        ["# of Open Complaints", str(open_issues_count)],
+        ["Average Time Taken to Close a Complaint", f"{avg_close_time:.2f} days"],
+        ["Most Common Complaint Category", most_common_category],
+    ]
+    add_table(pdf, table_data, PAGE_HEIGHT - 280, ((PAGE_WIDTH - 2 * MARGIN) / 2) - PAGE_WIDTH / 8)
+    add_charts(pdf, from_date_str, to_date_str)
+    pdf.showPage()
+
+    # Page 2: Detailed Table
+    draw_border(pdf)
+    pdf.setFont("Helvetica-Bold", 14)
+    pdf.drawString(PAGE_WIDTH / 2 - 100, PAGE_HEIGHT - 70, "Complaints in Given Time Range")
+    pdf.setFont("Helvetica", 12)
+    detailed_table_data = [
+        ["Category", "Issue ID", "Complaint", "Raised By", "Date", "Location", "Days to Resolve"],
+    ]
+    for issue in issues:
+        detailed_table_data.append([
+            issue["issue"].get("issueCat", "Unknown"),
+            issue.get("issueNo", "N/A"),
+            issue["issue"].get("issueContent", "N/A"),
+            issue["raised_by"].get("name", "N/A"),
+            issue.get("date", "N/A"),
+            issue["issue"].get("block", "N/A"),
+            str(total_days),  # Placeholder; you can make this specific to each issue
+        ])
+    add_table(pdf, detailed_table_data, start_y=PAGE_HEIGHT - 275)
+    add_footer(pdf, 2)
+    pdf.showPage()
+
+    # Blank page at the end
+    add_blank_page(pdf)
+
+    # Save and return the PDF
+    pdf.save()
+    buffer.seek(0)
+    return Response(buffer, mimetype='application/pdf', headers={"Content-Disposition": "inline;filename=dynamic_report.pdf"})
 
 
 if __name__ == "__main__":

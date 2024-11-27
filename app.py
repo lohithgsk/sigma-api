@@ -1386,6 +1386,25 @@ def issue_add_comment(code):
     return jsonify({"message": "Comment added successfully"}), 200
 
 
+@app.route("/task/export/<code>")
+def issue_status_export(code):
+    issue = mongo.db.dataset.find_one({"issueNo": code})
+
+    if issue:
+        # Convert ObjectId to string for JSON serialization
+        issue["_id"] = str(issue["_id"])
+
+        # Example logic to handle anonymity based on request context (replace with your actual logic)
+        if issue.get("anonymity") == "true" and request.args.get("mod") == "1":
+            issue["anonymity"] = "false"
+
+        return render_template("issue_report.html", issue=issue)
+
+        # return jsonify({"issue": issue})
+
+    return jsonify({"message": "Issue not found"}), 404
+
+
 @app.route("/manager/account", methods=["POST"])
 def account_page():
     data = request.get_json()
@@ -1582,6 +1601,7 @@ def generate_pdf():
     # Parse query parameters for date range
     from_date_str = request.args.get('from', None)
     to_date_str = request.args.get('to', None)
+    print(from_date_str)
 
     if not from_date_str or not to_date_str:
         return jsonify({"error": "Both 'from' and 'to' date parameters are required."}), 400
@@ -1593,7 +1613,7 @@ def generate_pdf():
         return jsonify({"error": "Invalid date format. Use 'DD-MM-YYYY'."}), 400
 
     # Fetch data from the MongoDB collection within the date range
-    issues = list(mongo.db.dataset.find({"date": {"$gte": from_date_str, "$lte": to_date_str}}))
+    issues = list(mongo.db.dataset.find({"date": {"$gte": datetime(from_date), "$lte": datetime(to_date)}}))
 
     # Initialize counters and accumulators
     total_days = 0

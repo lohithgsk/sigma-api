@@ -81,9 +81,9 @@ CORS(app)
 
 mongo = PyMongo(app)
 # BASE_URL = "https://api.gms.intellx.in"
-# BASE_URL = "http://127.0.0.1:5001"
+BASE_URL = "http://127.0.0.1:5001"
 # BASE_URL = "https://sigma-api.vercel.app"
-BASE_URL = "https://sigma-api-r7ao.onrender.com"
+# BASE_URL = "https://sigma-api-r7ao.onrender.com"
 
 
 def get_hash(clear: str):
@@ -428,7 +428,7 @@ def client_delete_user():
 @app.route("/client/reset_password", methods=["POST"])
 def client_reset_password():
     data = request.get_json()
-    user_id = data.get("id")
+    user_id = data.get("id").lower()
     old_password = data.get("old_password")
     new_password = data.get("new_password")
 
@@ -455,7 +455,7 @@ def client_reset_password():
 @app.route("/client/forgot_password", methods=["POST"])
 def client_forgot_password():
     data = request.get_json()
-    user_id = data.get("id")
+    user_id = data.get("id").lower()
 
     if not user_id:
         return jsonify({"message": "ID required"}), 400

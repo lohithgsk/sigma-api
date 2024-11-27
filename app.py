@@ -42,6 +42,9 @@ matplotlib.use('agg')
 import matplotlib.pyplot as plt
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.platypus import Paragraph
+from reportlab.platypus import Table, TableStyle, Paragraph
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet
 
 ########################################################################
 
@@ -148,6 +151,7 @@ def createIssue(data: dict):
         "issueNo": "".join(random.choices(string.ascii_uppercase + string.digits, k=5)),
         "time": rightNow.strftime("%I:%M %p"),
         "date": rightNow.strftime("%d/%m/%y"),
+        "ISODateTime": rightNow.isoformat(),
         "raised_by": {"name": data["name"], "personId": data["id"]},
         "issue": {
             "issueLastUpdateTime": rightNow.strftime("%I:%M %p"),
@@ -1456,8 +1460,13 @@ def add_sigma_header(pdf):
     pdf.drawInlineImage(sigma_img, img_x, img_y, width=img_width, height=img_height)
 
 def add_charts(pdf, from_date, to_date):
-    # Fetch data dynamically from MongoDB
-    issues = list(mongo.db.dataset.find({"date": {"$gte": from_date, "$lte": to_date}}))
+    
+    issues = list(
+        mongo.db.dataset.find(
+            {"ISODateTime": {
+                    "$gte": from_date.isoformat(),  # Convert `from_date` to ISO 8601 format
+                    "$lte": to_date.isoformat(),   # Convert `to_date` to ISO 8601 format
+                }}))
 
     # Initialize counters
     categories = {}
@@ -1580,6 +1589,71 @@ def add_table(pdf, table_data, start_y, width=((PAGE_WIDTH - 2 * MARGIN) / 2) - 
     table.wrapOn(pdf, width, PAGE_HEIGHT - start_y)
     table.drawOn(pdf, width, start_y)
 
+PAGE_WIDTH, PAGE_HEIGHT = A4
+MARGIN = 30  # Margin around the page
+
+def add_table_d(pdf, table_data, start_y, page_width=PAGE_WIDTH - 2 * MARGIN, page_height=PAGE_HEIGHT):
+    # Define column widths dynamically
+    col_widths = [page_width / len(table_data[0])] * len(table_data[0])
+
+    # Style for wrapped text
+    styles = getSampleStyleSheet()
+    cell_style = styles['BodyText']
+    cell_style.wordWrap = 'CJK'  # Enable word wrapping
+
+    # Wrap text in cells using Paragraph
+    wrapped_data = []
+    for row in table_data:
+        wrapped_row = [Paragraph(str(cell), cell_style) for cell in row]
+        wrapped_data.append(wrapped_row)
+
+    # Create the table
+    table = Table(wrapped_data, colWidths=col_widths)
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+    ]))
+
+    # Calculate available height for the table
+    available_height = start_y - MARGIN
+    table_height = table.wrap(page_width, available_height)[1]
+
+    # Handle table overflow to the next page if needed
+    if table_height > available_height:
+        rows_per_page = int(available_height // 27)  # Approximate rows per page
+        header = [wrapped_data[0]]  # Keep the header row separate
+        data_rows = wrapped_data[1:]
+
+        while data_rows:
+            page_data = header + data_rows[:rows_per_page]
+            table = Table(page_data, colWidths=col_widths)
+            table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ]))
+            table.wrap(page_width, available_height)
+            table.drawOn(pdf, MARGIN, start_y - table.wrap(page_width, available_height)[1])
+
+            # Move to the next page if rows are remaining
+            data_rows = data_rows[rows_per_page:]
+            if data_rows:
+                pdf.showPage()
+                draw_border(pdf)  # Ensure border is redrawn
+                start_y = page_height - MARGIN
+    else:
+        table.wrap(page_width, available_height)
+        table.drawOn(pdf, MARGIN, start_y - table_height)
+
 
 # Add footer with page number
 def add_footer(pdf, page_no):
@@ -1598,7 +1672,6 @@ def add_blank_page(pdf):
 
 @app.route('/manager/generate-pdf', methods=['GET'])
 def generate_pdf():
-    # Parse query parameters for date range
     from_date_str = request.args.get('from', None)
     to_date_str = request.args.get('to', None)
     print(from_date_str)
@@ -1607,14 +1680,23 @@ def generate_pdf():
         return jsonify({"error": "Both 'from' and 'to' date parameters are required."}), 400
 
     try:
+        # Convert input date strings to datetime objects
         from_date = datetime.strptime(from_date_str, "%d-%m-%Y")
         to_date = datetime.strptime(to_date_str, "%d-%m-%Y")
     except ValueError:
         return jsonify({"error": "Invalid date format. Use 'DD-MM-YYYY'."}), 400
 
-    # Fetch data from the MongoDB collection within the date range
-    issues = list(mongo.db.dataset.find({"date": {"$gte": datetime(from_date), "$lte": datetime(to_date)}}))
+    # Adjust `to_date` to include the entire day
+    to_date = to_date + timedelta(days=1) - timedelta(seconds=1)
 
+    # Fetch data from the MongoDB collection within the date range
+    issues = list(
+        mongo.db.dataset.find(
+            {"ISODateTime": {
+                    "$gte": from_date.isoformat(),  # Convert `from_date` to ISO 8601 format
+                    "$lte": to_date.isoformat(),   # Convert `to_date` to ISO 8601 format
+                }}))
+    
     # Initialize counters and accumulators
     total_days = 0
     closed_issues_count = 0
@@ -1679,7 +1761,7 @@ def generate_pdf():
         ["Most Common Complaint Category", most_common_category],
     ]
     add_table(pdf, table_data, PAGE_HEIGHT - 280, ((PAGE_WIDTH - 2 * MARGIN) / 2) - PAGE_WIDTH / 8)
-    add_charts(pdf, from_date_str, to_date_str)
+    add_charts(pdf, from_date, to_date)
     pdf.showPage()
 
     # Page 2: Detailed Table
@@ -1688,19 +1770,19 @@ def generate_pdf():
     pdf.drawString(PAGE_WIDTH / 2 - 100, PAGE_HEIGHT - 70, "Complaints in Given Time Range")
     pdf.setFont("Helvetica", 12)
     detailed_table_data = [
-        ["Category", "Issue ID", "Complaint", "Raised By", "Date", "Location", "Days to Resolve"],
+        ["Category", "Issue ID", "Raised By", "Date", "Location", "Days to Resolve"],
     ]
     for issue in issues:
         detailed_table_data.append([
             issue["issue"].get("issueCat", "Unknown"),
             issue.get("issueNo", "N/A"),
-            issue["issue"].get("issueContent", "N/A"),
             issue["raised_by"].get("name", "N/A"),
             issue.get("date", "N/A"),
             issue["issue"].get("block", "N/A"),
             str(total_days),  # Placeholder; you can make this specific to each issue
         ])
-    add_table(pdf, detailed_table_data, start_y=PAGE_HEIGHT - 275)
+
+    add_table_d(pdf, detailed_table_data, start_y=PAGE_HEIGHT - 100)
     add_footer(pdf, 2)
     pdf.showPage()
 

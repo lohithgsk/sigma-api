@@ -37,6 +37,8 @@ from reportlab.pdfgen import canvas
 from reportlab.lib import colors
 from reportlab.platypus import Table, TableStyle
 from reportlab.lib.units import inch
+import matplotlib
+matplotlib.use('agg')
 import matplotlib.pyplot as plt
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.platypus import Paragraph

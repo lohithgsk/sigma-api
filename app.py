@@ -1173,7 +1173,7 @@ def manager_login():
         )
 
     # If login is successful, return the entire user data
-    access_token = create_access_token(identity={"id": user_id, "name": user["name"]})
+    access_token = create_access_token(identity={"id": user_id, "name": user["name"], "mod": user["mod"]})
     user.pop("hashword", None)
     user.pop("_id", None)
     return (

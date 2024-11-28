@@ -358,7 +358,6 @@ def client_confirm_email(confkey):
     ), 200
 
 
-
 @app.route("/client/login", methods=["POST"])
 def client_login():
     data = request.get_json()
@@ -1014,6 +1013,22 @@ def manager_escalate_email(modkey):
         message="You have escalated this user's privileges to moderator status."
     ), 200
 
+@app.route("/manager/delete", methods=["POST"])
+def manager_delete():
+    data = request.get_json()
+    user_id = data.get("id").lower()
+
+    if not user_id:
+        return jsonify({"message": "ID required"}), 400
+
+    user = mongo.db.personnel.find_one({"id": user_id})
+
+    if not user:
+        return jsonify({"message": "User not found"}), 404
+
+    mongo.db.personnel.delete_one({"id": user_id})
+
+    return jsonify({"message": "User deleted successfully"}), 200
 
 @app.route("/manager/reject/<user_id>", methods=["DELETE"])
 def reject_user(user_id):

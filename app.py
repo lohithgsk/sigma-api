@@ -486,8 +486,8 @@ def client_forgot_password():
     return jsonify({"message": "Please check your e-mail to reset your password."}), 200
 
 
-@app.route("/client/forget_password/reset", methods=["POST"])
-def client_forget_password():
+@app.route("/client/forgot_password/reset", methods=["POST"])
+def client_forgot_password_reset():
     data = request.get_json()
     reset_key = data.get("reset_key").upper()
     new_password = data.get("new_password")
@@ -1075,7 +1075,7 @@ def manager_reset_password():
 def manager_forgot_password():
     """Function Helping Manager Reset Password"""
     data = request.get_json()
-    user_id = data.get("id")
+    user_id = data.get("id").lower()
 
     if not user_id:
         return jsonify({"message": "ID required"}), 400
@@ -1105,6 +1105,20 @@ def manager_forgot_password():
 
     return jsonify({"message": "Please check your e-mail to reset your password."}), 200
 
+@app.route("/manager/forgot_password/reset", methods=["POST"])
+def manager_forgot_password_reset():
+    data = request.get_json()
+    reset_key = data.get("reset_key").upper()
+    new_password = data.get("new_password")
+    user = mongo.db.personnel.find_one({"reset_key": reset_key})
+
+    if not user:
+        return jsonify({"message": "Invalid or expired reset key"}), 400
+    
+    hashed_password = get_hash(new_password)
+    mongo.db.personnel.update_one({"reset_key": reset_key}, {"$set": {"hashword": hashed_password}})
+
+    return jsonify({"message": "Password reset successfully"}), 200
 
 @app.route("/manager/reset/<reset_key>", methods=["GET"])
 def manager_reset_password_page(reset_key):

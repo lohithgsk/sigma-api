@@ -81,9 +81,9 @@ CORS(app)
 
 mongo = PyMongo(app)
 # BASE_URL = "https://api.gms.intellx.in"
-# BASE_URL = "http://127.0.0.1:5001"
+BASE_URL = "http://127.0.0.1:5001"
 # BASE_URL = "https://sigma-api.vercel.app"
-BASE_URL = "https://sigma-api-r7ao.onrender.com"
+# BASE_URL = "https://sigma-api-r7ao.onrender.com"
 
 
 def get_hash(clear: str):
@@ -1728,6 +1728,10 @@ def generate_pdf():
                     "$lte": to_date.isoformat(),   # Convert `to_date` to ISO 8601 format
                 }}))
     
+    # Check if the issues list is empty
+    if not issues:
+        return jsonify({"error": "No available issues in the given range."}), 404
+
     # Initialize counters and accumulators
     total_days = 0
     closed_issues_count = 0

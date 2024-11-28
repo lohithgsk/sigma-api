@@ -147,7 +147,7 @@ def createIssue(data: dict):
     }
     """
 
-    rightNow = datetime.now(timezone("Asia/Kolkata"))
+    rightNow = datetime.now(("timezoneAsia/Kolkata"))
     newEntry = {
         "issueNo": "".join(random.choices(string.ascii_uppercase + string.digits, k=5)),
         "time": rightNow.strftime("%I:%M %p"),
@@ -691,6 +691,26 @@ def report_issue():
         jsonify({"message": "Issue reported successfully", "issue_id": issue_id}),
         201,
     )
+
+@app.route('/client/get_similar_issues', methods=['GET'])
+def client_get_similar_issues():
+    # Get parameters
+    block = request.args.get('block')
+    floor = request.args.get('floor')
+    today_date = datetime.now(timezone("Asia/Kolkata")).strftime("%d/%m/%y")
+
+    # Build query
+    query = {"date": today_date}  # Match today's date
+    if block:
+        query["block"] = block  # Match block if provided
+    if floor:
+        query["floor"] = floor  # Match floor if provided
+
+    # Fetch data from MongoDB using the query
+    issues = list(mongo.db.dataset.find(query, {"_id": 0}))  # Exclude `_id` from results for simplicity
+
+    return jsonify(issues)
+
 
 
 #########################################################################################################################################

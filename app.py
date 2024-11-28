@@ -81,9 +81,9 @@ CORS(app)
 
 mongo = PyMongo(app)
 # BASE_URL = "https://api.gms.intellx.in"
-# BASE_URL = "http://127.0.0.1:5001"
+BASE_URL = "http://127.0.0.1:5001"
 # BASE_URL = "https://sigma-api.vercel.app"
-BASE_URL = "https://sigma-api-r7ao.onrender.com"
+# BASE_URL = "https://sigma-api-r7ao.onrender.com"
 
 
 def get_hash(clear: str):
@@ -485,6 +485,22 @@ def client_forgot_password():
 
     return jsonify({"message": "Please check your e-mail to reset your password."}), 200
 
+
+@app.route("/client/forget_password/reset", methods=["POST"])
+def client_forget_password():
+    data = request.get_json()
+    reset_key = data.get("reset_key").upper()
+    new_password = data.get("new_password")
+    user = mongo.db.users.find_one({"reset_key": reset_key})
+
+    if not user:
+        return jsonify({"message": "Invalid or expired reset key"}), 400
+    
+    hashed_password = get_hash(new_password)
+    mongo.db.users.update_one({"reset_key": reset_key}, {"$set": {"hashword": hashed_password}})
+
+    return jsonify({"message": "Password reset successfully"}), 200
+      
 
 @app.route("/client/reset/<reset_key>", methods=["GET"])
 def client_reset_password_page(reset_key):

@@ -1364,7 +1364,7 @@ def task_list_table():
     my_issues = []
 
     for i in issues:
-        if i["status"] == "OPEN" and i["issue"]["issueType"] == "ISSUE":
+        if i["status"] == "OPEN" and i["issue"]["issueType"] == "Complaint":
             issueDate = datetime.strptime(i["issue"]["issueLastUpdateDate"], "%d/%m/%y")
             ddays = (datetime.now() - issueDate).days
             i.update({"delay_days": ddays})

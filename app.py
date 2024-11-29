@@ -692,6 +692,41 @@ def report_issue():
         201,
     )
 
+@app.route('/client/assign_issue', methods=['POST'])
+def assign_issue():
+    try:
+        # Get the request body as JSON
+        data = request.get_json()
+
+        # Extract required fields from the request body
+        issue_no = data["issueNo"]
+        assignee = data["assignee"]
+
+        # Find the issue by its issueNo
+        issue = mongo.db.dataset.find_one({"issueNo": issue_no})
+
+        if not issue:
+            return jsonify({"status": "error", "message": f"Issue with issueNo '{issue_no}' not found"}), 404
+
+        # Update the issue to include the 'assignee' field
+        mongo.db.dataset.update_one(
+            {"issueNo": issue_no},
+            {"$set": {"assignee": assignee}}
+        )
+
+        return jsonify({
+            "status": "success",
+            "message": f"Assignee '{assignee}' has been added to issue '{issue_no}'"
+        }), 200
+
+    except KeyError as e:
+        # Handle missing keys in the JSON payload
+        return jsonify({"status": "error", "message": f"Missing key: {e}"}), 400
+
+    except Exception as e:
+        # Handle any other errors
+        return jsonify({"status": "error", "message": str(e)}), 500
+
 @app.route('/client/get_similar_issues', methods=['POST'])
 def client_get_similar_issues():
     try:

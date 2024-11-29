@@ -147,7 +147,7 @@ def createIssue(data: dict):
     }
     """
 
-    rightNow = datetime.now(("timezoneAsia/Kolkata"))
+    rightNow = datetime.now(timezone("Asia/Kolkata"))
     newEntry = {
         "issueNo": "".join(random.choices(string.ascii_uppercase + string.digits, k=5)),
         "time": rightNow.strftime("%I:%M %p"),

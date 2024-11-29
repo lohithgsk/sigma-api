@@ -692,24 +692,60 @@ def report_issue():
         201,
     )
 
-@app.route('/client/get_similar_issues', methods=['GET'])
+@app.route('/client/get_similar_issues', methods=['POST'])
 def client_get_similar_issues():
-    # Get parameters
-    block = request.args.get('block')
-    floor = request.args.get('floor')
-    today_date = datetime.now(timezone("Asia/Kolkata")).strftime("%d/%m/%y")
+    try:
+        # Get parameters from the JSON request body
+        data = request.get_json()
+        block = data["block"]
+        floor = data["floor"]
+        today_date = datetime.now(timezone("Asia/Kolkata")).strftime("%d/%m/%y")
 
-    # Build query
-    query = {"date": today_date}  # Match today's date
-    if block:
-        query["block"] = block  # Match block if provided
-    if floor:
-        query["floor"] = floor  # Match floor if provided
+        # Retrieve all issues from MongoDB matching block and floor
+        issues = list(mongo.db.dataset.find({"issue.block": block, "issue.floor": floor}))
+        print(f"Retrieved issues: {issues}")
 
-    # Fetch data from MongoDB using the query
-    issues = list(mongo.db.dataset.find(query, {"_id": 0}))  # Exclude `_id` from results for simplicity
+        # Filter the issues and extract the required fields
+        filtered_issues = []
+        for issue in issues:
+            # Mandatory filters
+            if issue["status"] != "OPEN":
+                continue
+            if issue["issue"]["issueType"] != "Complaint":
+                continue
+            if issue["date"] != today_date:
+                continue
 
-    return jsonify(issues)
+            # Extract comments content (if any)
+            comments = issue["comments"] if "comments" in issue else []
+            first_comment = None
+            if comments:
+                # Get the first comment's content if it's available
+                first_comment = comments[0]["content"][0]["content"] if "content" in comments[0] else None
+
+            # Add filtered issue to the response
+            filtered_issues.append({
+                "issueNo": issue["issueNo"],
+                "time": issue["time"],
+                "date": issue["date"],
+                "name": issue["raised_by"]["name"],
+                "personID": issue["raised_by"]["personId"],
+                "block": issue["issue"]["block"],
+                "floor": issue["issue"]["floor"],
+                "actionItem": issue["issue"]["actionItem"],
+                "comments": first_comment
+            })
+
+        # Return the filtered issues as a JSON response
+        return jsonify(filtered_issues)
+
+    except KeyError as e:
+        # Handle missing keys in the MongoDB documents
+        return jsonify({"status": "error", "message": f"Missing key: {e}"}), 400
+
+    except Exception as e:
+        # Handle other unexpected errors
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 
 

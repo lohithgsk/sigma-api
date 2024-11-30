@@ -748,8 +748,7 @@ def client_get_similar_issues():
                 continue
             if issue["issue"]["issueType"] != "Complaint":
                 continue
-            if issue["date"] != today_date:
-                continue
+
 
             # Extract comments content (if any)
             comments = issue["comments"] if "comments" in issue else []
@@ -765,6 +764,8 @@ def client_get_similar_issues():
                 "date": issue["date"],
                 "name": issue["raised_by"]["name"],
                 "personID": issue["raised_by"]["personId"],
+                "issueCat": issue["issue"]["issueCat"],
+                "issueContent": issue["issue"]["issueContent"],
                 "block": issue["issue"]["block"],
                 "floor": issue["issue"]["floor"],
                 "actionItem": issue["issue"]["actionItem"],

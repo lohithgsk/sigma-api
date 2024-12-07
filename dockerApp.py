@@ -2,7 +2,8 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 import ssl, smtplib, hashlib, uuid
 from flask import Flask, request, jsonify, render_template, render_template_string, Response
-from flask_pymongo import PyMongo
+import pymongo
+from pymongo import MongoClient
 import json
 import random, string, requests, subprocess
 from flask_cors import CORS, cross_origin
@@ -79,11 +80,16 @@ app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(days=1)
 jwt = JWTManager(app)
 CORS(app)
 
-mongo = PyMongo(app)
+
+mongo = MongoClient(host='sigma_db',
+                     port=27017, 
+                     username='flask-access', 
+                     password='qwertyuiop',
+                     authSource="admin")
 # BASE_URL = "https://api.gms.intellx.in"
-# BASE_URL = "http://127.0.0.1:5001"
+BASE_URL = "http://127.0.0.1:5001"
 # BASE_URL = "https://sigma-api.vercel.app"
-BASE_URL = "https://sigma-api-r7ao.onrender.com"
+# BASE_URL = "https://sigma-api-r7ao.onrender.com"
 
 
 def get_hash(clear: str):

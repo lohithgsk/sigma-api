@@ -370,6 +370,7 @@ def client_register():
     name = data.get("name")
     user_id = data.get("id").lower()
     password = data.get("password")
+    phone_number = data.get("phone_number")
 
     if not name or not user_id or not password:
         return jsonify({"message": "Name, ID, and password are required"}), 400
@@ -401,6 +402,7 @@ def client_register():
         {
             "name": name,
             "id": user_id,
+            "phone_number": phone_number,
             "hashword": hashed_password,
             "confirmed": False,
             "confkey": confirm_key,
@@ -455,7 +457,7 @@ def client_login():
             403,
         )
 
-    access_token = create_access_token(identity={"id": user_id, "name": user["name"]})
+    access_token = create_access_token(identity={"id": user_id, "name": user["name"], "phone_number": user["phone_number"]})
     user.pop("hashword", None)
     user.pop("_id", None)
     return (

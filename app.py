@@ -3,7 +3,9 @@ from email.mime.text import MIMEText
 import ssl, smtplib, hashlib, uuid
 from flask import Flask, request, jsonify, render_template, render_template_string, Response
 from flask_pymongo import PyMongo
+import gridfs
 import json
+from bson.objectid import ObjectId
 import random, string, requests, subprocess
 from flask_cors import CORS, cross_origin
 from flask_jwt_extended import (
@@ -17,6 +19,7 @@ from dotenv import load_dotenv
 import os
 import time
 from pytz import timezone
+import re
 
 load_dotenv()
 ########################################################################
@@ -269,6 +272,78 @@ def addComment(issueId: str, comment: dict):
     mongo.db.dataset.update_one(
         {"_id": issueEntry.get("_id")}, {"$set": {"comments": comments, "issue": issue}}
     )
+
+
+#########################################################################
+
+def branchMapping(code):
+    branch = {
+        "A": "BE AUTOMOBILE ENGINEERING",
+        "D": "BE BIOMEDICAL ENGINEERING",
+        "C": "BE CIVIL ENGINEERING",
+        "Z": "BE COMPUTER SCIENCE AND ENGINEERING",
+        "N": "BE COMPUTER SCIENCE & ENGINEERING (ARTIFICIAL INTELLIGENCE & MACHINE LEARNING)",
+        "E": "BE ELECTRICAL & ELECTRONICS ENGINEERING",
+        "L": "BE ELECTRONICS & COMMUNICATION ENGINEERING",
+        "U": "BE INSTRUMENTATION AND CONTROL ENGINEERING",
+        "M": "BE MECHANICAL ENGINEERING",
+        "Y": "BE METALLURGICAL ENGINEERING",
+        "P": "BE PRODUCTION ENGINEERING",
+        "R": "BE ROBOTICS & AUTOMATION",
+        "B": "BTECH BIOTECHNOLOGY",
+        "F": "BTECH FASHION TECHNOLOGY",
+        "I": "BTECH INFORMATION TECHNOLOGY",
+        "T": "BTECH TEXTILE TECHNOLOGY",
+        "PC": "CYBER SECURITY - INTEGRATED [5 YEARS INTEGRATED]",
+        "PD": "DATA SCIENCE [5 YEARS INTEGRATED]",
+        "PW": "SOFTWARE SYSTEMS [5 YEARS INTEGRATED]",
+        "PT": "THEORETICAL COMPUTER SCIENCE [5 YEARS INTEGRATED]",
+        "PF": "FASHION DESIGN & MERCHANDISING [5 YEARS INTEGRATED]",
+        "S": "APPLIED SCIENCE",
+        "X": "COMPUTER SYSTEMS AND DESIGN"
+    }
+    return branch.get(code, "BRANCH UNKNOWN")
+
+#########################################################################
+
+def branchHODMapping(code):
+    branch = {
+        "A": "snk.auto@psgtech",
+        "D": "rvp.bme@psgtech",
+        "C": "hod.civil@psgtech",
+        "Z": "hod.cse@psgtech",
+        "N": "hod.cse@psgtech",
+        "E": "jkr.eee@psgtech",
+        "L": "vk.ece@psgtech",
+        "U": "jas.ice@psgtech",
+        "M": "prt.mech@psgtech",
+        "Y": "jkm.metal@psgtech",
+        "P": "msk.prod@psgtech",
+        "R": "hod.rae@psgtech",
+        "B": "mas.bio@psgtech",
+        "F": "kcs.fashion@psgtech",
+        "I": "hod.it@psgtech",
+        "T": "hod.textile@psgtech",
+        "PC": "hod.amcs@psgtech",
+        "PD": "hod.amcs@psgtech",
+        "PW": "hod.amcs@psgtech",
+        "PT": "hod.amcs@psgtech",
+        "PF": "hod.afd@psgtech",
+        "S": "hod.apsc@psgtech",
+        "X": "hod.amcs@psgtech"
+    }
+    return branch.get(code, "BRANCH UNKNOWN")
+
+#########################################################################
+
+def extractBranchCode(roll_number):
+    # Use regex to extract the branch code (letters in the middle of the roll number)
+    match = re.search(r'[A-Z]+', roll_number[2:])  # Skip the first two digits
+    if match:
+        return match.group()  # Extracted branch code
+    return None  # Return None if no branch code is found
+
+#########################################################################
 
 
 @app.route("/")
@@ -1935,6 +2010,154 @@ def generate_pdf():
     pdf.save()
     buffer.seek(0)
     return Response(buffer, mimetype='application/pdf', headers={"Content-Disposition": "inline;filename=dynamic_report.pdf"})
+
+fs = gridfs.GridFS(mongo.db)
+
+
+@app.route('/raise_lost_item', methods=['POST'])
+def raise_lost_item():
+    try:
+        # Extract form data (multipart/form-data)
+        name = request.form['name']
+        roll_no = request.form['roll_no']
+        contact_number = request.form['contact_number']
+        email = request.form['email']
+        department = request.form['department']
+        item_name = request.form['item_name']
+        category = request.form['category']
+        description = request.form['description']
+        date_lost = request.form.get("date_lost", datetime.now(timezone("Asia/Kolkata")).strftime("%Y-%m-%d"))
+        last_seen_location = request.form['last_seen_location']
+        comments = request.form.get("comments", "")
+        user_account_id = request.form['user_account_id']
+
+        # Generate a unique item_id
+        unique_item_id = str(uuid.uuid4())
+
+        # Check for the image files
+        image_files = request.files.getlist("images")  # Get list of uploaded images
+
+        # Store the images in GridFS (if provided)
+        image_ids = []
+        for image_file in image_files:
+            if image_file:
+                # Save the image file to GridFS
+                image_id = fs.put(image_file, filename=image_file.filename, content_type=image_file.content_type)
+                image_ids.append(str(image_id))
+
+        # Build the lost item document
+        lost_item = {
+            "item_id": unique_item_id,  # Add unique item ID
+            "name": name,
+            "roll_no": roll_no,
+            "contact_number": contact_number,
+            "email": email,
+            "department": department,
+            "item_details": {
+                "item_name": item_name,
+                "category": category,
+                "description": description,
+            },
+            "date_lost": date_lost,
+            "last_seen_location": last_seen_location,
+            "comments": comments,
+            "reported_on": datetime.now(timezone("Asia/Kolkata")).strftime("%Y-%m-%d %H:%M:%S"),
+            "image_ids": image_ids,  # Store multiple image IDs
+            "user_account_id": user_account_id # Roll number of the account, where you raised lost item from. (only this user can remove lost item from list)
+        }
+
+        # Insert the document into MongoDB
+        result = mongo.db.lostandfound.insert_one(lost_item)
+
+        # Return success response
+        return jsonify({
+            "message": "Lost item reported successfully!",
+            "item_id": unique_item_id,  # Return the generated item_id
+            "image_ids": image_ids if image_ids else "No images uploaded"
+        }), 201
+
+    except Exception as e:
+        return jsonify({
+            "error": str(e),
+            "message": "Failed to report lost item"
+        }), 400
+
+@app.route('/get_all_lost_items', methods=['GET'])
+def get_all_lost_items():
+    try:
+        # Query all documents from the 'lostandfound' collection
+        lost_items_cursor = mongo.db.lostandfound.find({})
+        lost_items = []
+
+        for item in lost_items_cursor:
+            # Convert BSON ObjectId to string for JSON compatibility
+            item["_id"] = str(item["_id"])
+
+            # Retrieve images if 'image_ids' exists
+            if "image_ids" in item:
+                item["images"] = []  # Initialize list for images
+
+                for image_id in item["image_ids"]:
+                    try:
+                        # Fetch the image file from GridFS
+                        image_file = fs.get(ObjectId(image_id))
+                        if image_file:
+                            # Encode the image content to Base64
+                            image_base64 = base64.b64encode(image_file.read()).decode("utf-8")
+                            item["images"].append(f"data:image/png;base64,{image_base64}")
+                    except Exception as e:
+                        print(f"Error fetching image: {e}")
+                        item["images"].append(None)
+
+            lost_items.append(item)
+
+        # Return the data as JSON
+        return jsonify({"lost_items": lost_items}), 200
+
+    except Exception as e:
+        return jsonify({
+            "error": str(e),
+            "message": "Failed to retrieve lost items"
+        }), 500 
+    
+@app.route('/remove_lost_item', methods=['POST'])
+def remove_lost_item():
+    try:
+        # Extract the item_id from the request data
+        item_id = request.json.get('item_id')
+
+        # Check if item_id is provided
+        if not item_id:
+            return jsonify({"error": "Item ID is required"}), 400
+
+        # Fetch the document for the given item_id
+        lost_item = mongo.db.lostandfound.find_one({"item_id": item_id})
+
+        if not lost_item:
+            return jsonify({"error": "Lost item not found"}), 404
+
+        # Delete associated images from GridFS
+        if "image_ids" in lost_item and isinstance(lost_item["image_ids"], list):
+            for image_id in lost_item["image_ids"]:
+                try:
+                    fs.delete(ObjectId(image_id))  # Delete image from GridFS
+                except Exception as e:
+                    print(f"Failed to delete image {image_id}: {e}")
+
+        # Remove the lost item document from MongoDB
+        result = mongo.db.lostandfound.delete_one({"item_id": item_id})
+
+        # Check if the document was successfully deleted
+        if result.deleted_count == 1:
+            return jsonify({"message": "Lost item and associated images removed successfully"}), 200
+        else:
+            return jsonify({"error": "Failed to delete lost item"}), 500
+
+    except Exception as e:
+        return jsonify({
+            "error": str(e),
+            "message": "Failed to remove lost item and images"
+        }), 500
 
 
 if __name__ == "__main__":

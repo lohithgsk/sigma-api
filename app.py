@@ -81,6 +81,7 @@ app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY")
 app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(days=1)
 jwt = JWTManager(app)
 CORS(app)
+fs = gridfs.GridFS(mongo.db)
 
 mongo = PyMongo(app)
 # BASE_URL = "https://api.gms.intellx.in"
@@ -2010,8 +2011,6 @@ def generate_pdf():
     pdf.save()
     buffer.seek(0)
     return Response(buffer, mimetype='application/pdf', headers={"Content-Disposition": "inline;filename=dynamic_report.pdf"})
-
-fs = gridfs.GridFS(mongo.db)
 
 
 @app.route('/raise_lost_item', methods=['POST'])

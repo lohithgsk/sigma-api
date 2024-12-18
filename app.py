@@ -307,34 +307,36 @@ def branchMapping(code):
     return branch.get(code, "BRANCH UNKNOWN")
 
 #########################################################################
+    
 
-def branchHODMapping(code):
-    branch = {
-        "A": "snk.auto@psgtech",
-        "D": "rvp.bme@psgtech",
-        "C": "hod.civil@psgtech",
-        "Z": "hod.cse@psgtech",
-        "N": "hod.cse@psgtech",
-        "E": "jkr.eee@psgtech",
-        "L": "vk.ece@psgtech",
-        "U": "jas.ice@psgtech",
-        "M": "prt.mech@psgtech",
-        "Y": "jkm.metal@psgtech",
-        "P": "msk.prod@psgtech",
-        "R": "hod.rae@psgtech",
-        "B": "mas.bio@psgtech",
-        "F": "kcs.fashion@psgtech",
-        "I": "hod.it@psgtech",
-        "T": "hod.textile@psgtech",
-        "PC": "hod.amcs@psgtech",
-        "PD": "hod.amcs@psgtech",
-        "PW": "hod.amcs@psgtech",
-        "PT": "hod.amcs@psgtech",
-        "PF": "hod.afd@psgtech",
-        "S": "hod.apsc@psgtech",
-        "X": "hod.amcs@psgtech"
+def department_hod(department):
+    map = {
+        "Apparel & Fashion Design": "hod.afd@psgtech",
+        "Applied Mathematics & Computational Sciences": "hod.amcs@psgtech",
+        "Applied Science": "hod.apsc@psgtech",
+        "Automobile Engineering": "snk.auto@psgtech",
+        "Biotechnology": "mas.bio@psgtech",
+        "Biomedical Engineering": "rvp.bme@psgtech",
+        "Chemistry": "ctr.chem@psgtech",
+        "Civil Engineering": "hod.civil@psgtech",
+        "Computer Science & Engineering": "hod.cse@psgtech",
+        "Electronics & Communication Engineering": "vk.ece@psgtech",
+        "Electrical & Electronics Engineering": "jkr.eee@psgtech",
+        "English": "hod.english@psgtech",
+        "Fashion Technology": "kcs.fashion@psgtech",
+        "Humanities": "hod.hum@psgtech",
+        "Instrumentation & Control Systems Engineering": "jas.ice@psgtech",
+        "Information Technology": "hod.it@psgtech",
+        "Mathematics": "cpg.maths@psgtech",
+        "Computer Applications": "ac.mca@psgtech",
+        "Mechanical Engineering": "prt.mech@psgtech",
+        "Metallurgical Engineering": "jkm.metal@psgtech",
+        "Physics": "ksk.phy@psgtech",
+        "Production Engineering": "msk.prod@psgtech",
+        "Robotics & Automation Engineering": "hod.rae@psgtech",
+        "Textile Technology": "hod.textile@psgtech"
     }
-    return branch.get(code, "BRANCH UNKNOWN")
+    return map.get(department, "BRANCH UNKNOWN")
 
 #########################################################################
 
@@ -371,6 +373,9 @@ def client_register():
     user_id = data.get("id").lower()
     password = data.get("password")
     phone_number = data.get("phone_number")
+    club = data.get("club")
+    club_email = data.get("club_email")
+    department = data.get("department")
 
     if not name or not user_id or not password:
         return jsonify({"message": "Name, ID, and password are required"}), 400
@@ -379,7 +384,7 @@ def client_register():
 
     if existing_user:
         return jsonify({"message": "User already exists"}), 409
-
+    
     hashed_password = get_hash(password)
     confirm_key = str(uuid.uuid4()).split("-")[0].upper()
 
@@ -403,6 +408,9 @@ def client_register():
             "name": name,
             "id": user_id,
             "phone_number": phone_number,
+            "club": club,
+            "club_email": club_email,
+            "department": department,
             "hashword": hashed_password,
             "confirmed": False,
             "confkey": confirm_key,

@@ -365,62 +365,80 @@ def home():
 
 @app.route("/client/register", methods=["POST"])
 def client_register():
-    data = request.get_json()
-    if not data:
-        return jsonify({"message": "No input data provided"}), 400
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"message": "No input data provided"}), 400
 
-    name = data.get("name")
-    user_id = data.get("id").lower()
-    password = data.get("password")
-    phone_number = data.get("phone_number")
-    club = data.get("club")
-    club_email = data.get("club_email")
-    department = data.get("department")
+        name = data.get("name")
+        user_id = data.get("id")
+        password = data.get("password")
+        phone_number = data.get("phone_number")
+        club = data.get("club")
+        club_email = data.get("club_email")
+        department = data.get("department")
 
-    if not name or not user_id or not password:
-        return jsonify({"message": "Name, ID, and password are required"}), 400
+        if not name or not user_id or not password:
+            return jsonify({"message": "Name, ID, and password are required"}), 400
 
-    existing_user = mongo.db.users.find_one({"id": user_id})
+        user_id = user_id.lower()
 
-    if existing_user:
-        return jsonify({"message": "User already exists"}), 409
-    
-    hashed_password = get_hash(password)
-    confirm_key = str(uuid.uuid4()).split("-")[0].upper()
+        # Check if user already exists
+        existing_user = mongo.db.users.find_one({"id": user_id})
+        if existing_user:
+            return jsonify({"message": "User already exists"}), 409
 
-    confirmation_link = f"{BASE_URL}/client/confirm/{confirm_key}"
-    sendmail(
-        mail_met={"type": "welcome"},
-        receiver=f"{user_id}@psgtech.ac.in",
-        subject="[PSG-GMS-SIGMA] Welcome!",
-        short_subject="Welcome!",
-        text=f"""Dear {name},
-        <br/>Welcome to "SIGMA" General Maintenance Software by PSG College of Technology! Please click the link below to confirm your e-mail and start using the software.
-        <br/><br/>
-        <a style="text-decoration:none;background-color: #2A4BAA;font-size: 20px;border: none;color: white;border-radius: 10px;padding-top: 10px;padding-bottom: 10px;padding-left: 30px;padding-right: 30px;" href="{confirmation_link}">Confirm E-Mail</a>
-        <br/><br/>
-        If the button does not work, please visit {confirmation_link} and confirm.
-        <br/>Thank You.""",
-    )
+        # Hash password
+        try:
+            hashed_password = get_hash(password)
+        except Exception as e:
+            return jsonify({"message": f"Error hashing password: {str(e)}"}), 500
 
-    mongo.db.users.insert_one(
-        {
-            "name": name,
-            "id": user_id,
-            "phone_number": phone_number,
-            "club": club,
-            "club_email": club_email,
-            "department": department,
-            "hashword": hashed_password,
-            "confirmed": False,
-            "confkey": confirm_key,
-        }
-    )
+        # Generate confirmation key
+        confirm_key = str(uuid.uuid4()).split("-")[0].upper()
+        confirmation_link = f"{BASE_URL}/client/confirm/{confirm_key}"
 
-    return (
-        jsonify({"message": "Please check your e-mail to confirm your registration."}),
-        201,
-    )
+        # Send confirmation email
+        try:
+            sendmail(
+                mail_met={"type": "welcome"},
+                receiver=f"{user_id}@psgtech.ac.in",
+                subject="[PSG-GMS-SIGMA] Welcome!",
+                short_subject="Welcome!",
+                text=f"""Dear {name},
+                <br/>Welcome to "SIGMA" General Maintenance Software by PSG College of Technology! 
+                Please click the link below to confirm your e-mail and start using the software.
+                <br/><br/>
+                <a style="text-decoration:none;background-color: #2A4BAA;font-size: 20px;border: none;color: white;border-radius: 10px;padding-top: 10px;padding-bottom: 10px;padding-left: 30px;padding-right: 30px;" href="{confirmation_link}">Confirm E-Mail</a>
+                <br/><br/>
+                If the button does not work, please visit {confirmation_link} and confirm.
+                <br/>Thank You.""",
+            )
+        except Exception as e:
+            return jsonify({"message": f"Error sending confirmation email: {str(e)}"}), 500
+
+        # Insert user into database
+        try:
+            mongo.db.users.insert_one(
+                {
+                    "name": name,
+                    "id": user_id,
+                    "phone_number": phone_number,
+                    "club": club,
+                    "club_email": club_email,
+                    "department": department,
+                    "hashword": hashed_password,
+                    "confirmed": False,
+                    "confkey": confirm_key,
+                }
+            )
+        except Exception as e:
+            return jsonify({"message": f"Error saving user data: {str(e)}"}), 500
+
+        return jsonify({"message": "Please check your e-mail to confirm your registration."}), 201
+
+    except Exception as e:
+        return jsonify({"message": f"An unexpected error occurred: {str(e)}"}), 500
 
 @app.route("/client/confirm/<confkey>", methods=["GET"])
 def client_confirm_email(confkey):
